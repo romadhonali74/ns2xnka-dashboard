@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, TrendingUp, AlertTriangle, LogOut, Calendar } from "lucide-react";
+import { Home, TrendingUp, AlertTriangle, LogOut, Calendar, ShieldCheck } from "lucide-react";
 import { Button } from "./ui/button";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "../lib/supabase"; // Impor supabase
@@ -60,6 +60,7 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
     if (pathname === "/") return "home";
     if (pathname === "/loading_ritase_rate") return "loading-rate";
     if (pathname === "/issues") return "issues";
+    if (pathname === "/quality_control") return "quality_control";
     if (pathname.startsWith("/realisasi_pengapalan")) return "daily-operations";
     return "home";
   };
@@ -104,6 +105,8 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
       router.push("/issues");
     } else if (tab === "daily-operations") {
       router.push("/realisasi_pengapalan");
+    } else if (tab === "quality_control") {
+      router.push("/quality_control");
     } else if (tab === "logout") {
       handleLogout();
     }
@@ -114,6 +117,7 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
     { id: "loading-rate", label: "Loading & Ritase Rate", icon: TrendingUp },
     { id: "daily-operations", label: "Daily Operations", icon: Calendar },
     { id: "issues", label: "Significant Issues", icon: AlertTriangle },
+    { id: "quality_control", label: "Quality Control", icon: ShieldCheck },
     { id: "logout", label: "Log out", icon: LogOut },
   ];
 

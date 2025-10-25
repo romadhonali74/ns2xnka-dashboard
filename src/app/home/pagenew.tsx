@@ -41,7 +41,7 @@ export default function CRUDPage() {
   const fetchData = async () => {
     try {
       // Ganti dengan API endpoint Anda
-      const response = await fetch('/api/datatest');
+      const response = await fetch('/api/quality_control');
       const result = await response.json();
       setData(result);
       setIsLoading(false);
@@ -54,7 +54,7 @@ export default function CRUDPage() {
     e.preventDefault();
     try {
       const method = editMode ? 'PUT' : 'POST';
-      const url = editMode ? `/api/datatest/${formData.id}` : '/api/datatest';
+      const url = editMode ? `/api/quality_control/${formData.id}` : '/api/quality_control';
       
       await fetch(url, {
         method: method,
@@ -73,7 +73,7 @@ export default function CRUDPage() {
   const handleDelete = async (id: number) => {
     if (confirm('Are you sure you want to delete this item?')) {
       try {
-        await fetch(`/api/datatest/${id}`, { method: 'DELETE' });
+        await fetch(`/api/quality_control/${id}`, { method: 'DELETE' });
         fetchData();
       } catch (error) {
         console.error('Error deleting data:', error);
