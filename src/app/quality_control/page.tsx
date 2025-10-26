@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from "../components/ui/card";
 import { Button } from "../components/ui/button";
-import { Plus, Edit, Trash2, Search, Filter } from "lucide-react";
+import { Plus, Edit, Trash2, Search, Filter, Download, FileText } from "lucide-react";
 import { useAuth } from "../providers/auth_provider";
 
 
@@ -127,6 +127,44 @@ export default function StylishCRUDTable() {
     console.log('Tab changed to:', tab);
   };
 
+  const exportToExcel = () => {
+    const headers = ['Kode Produksi', 'No Produksi', 'Jenis Material', 'Kode Front', 'Kode Kontraktor', 'Jumlah Sampel'];
+    const data = filteredUsers.map(user => [
+      user.kode_produksi,
+      user.no_produksi,
+      user.jenis_material,
+      user.kode_front,
+      user.kode_kontraktor,
+      user.jumlah_sampel
+    ]);
+    
+    // Create HTML table for Excel
+    let htmlContent = `
+      <table border="1" style="border-collapse: collapse; width: 100%;">
+        <thead>
+          <tr style="background-color: #f2f2f2; font-weight: bold;">
+            ${headers.map(header => `<th style="padding: 8px; text-align: center;">${header}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${data.map(row => 
+            `<tr>${row.map(cell => `<td style="padding: 8px; text-align: center;">${cell}</td>`).join('')}</tr>`
+          ).join('')}
+        </tbody>
+      </table>
+    `;
+    
+    const blob = new Blob([htmlContent], { type: 'application/vnd.ms-excel' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'quality_control.xls';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#f1f2f7" }}>
       <div className="flex">
@@ -135,135 +173,156 @@ export default function StylishCRUDTable() {
         <div className="crud-container">
             <div className="crud-header">
                     <h2>Quality Control</h2>
-                    <button className="btn-primary" onClick={() => setShowModal(true)}>
-                    + Add Data
+                    <button className="btn-primary" onClick={() => setShowModal(true)} style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                    <Plus size={16} />
+                    Add Data
                     </button>
                 </div>
-                <div style={{marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '15px'}}>
-                  <div style={{position: 'relative', display: 'inline-block'}}>
-                  <Search 
-                    size={16} 
-                    style={{
-                      position: 'absolute',
-                      left: '12px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      color: '#666',
-                      pointerEvents: 'none'
-                    }}
-                  />
-                  <input
-                    type="text"
-                    placeholder="Search..."
-                    value={searchTerm}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                      setSearchTerm(e.target.value);
-                      const filtered = users.filter(user => 
-                        user.kode_produksi?.toLowerCase().includes(e.target.value.toLowerCase()) ||
-                        // user.no_produksi?.toLowerCase().includes(e.target.value.toLowerCase()) ||
-                        user.jenis_material?.toLowerCase().includes(e.target.value.toLowerCase()) ||
-                        user.kode_front?.toLowerCase().includes(e.target.value.toLowerCase()) ||
-                        user.kode_kontraktor?.toLowerCase().includes(e.target.value.toLowerCase())
-                        // String(user.jumlah_sampel).toLowerCase().includes(e.target.value.toLowerCase())
-                      );
-                      setFilteredUsers(filtered);
-                    }}
-                    style={{
-                      width: '300px',
-                      padding: '8px 12px 8px 36px',
-                      border: '1px solid #ddd',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                      backgroundColor: '#ffffff'
-                    }}
-                  />
-                  </div>
-                  <div style={{position: 'relative'}}>
-                    <button
-                      onClick={() => setShowSortMenu(!showSortMenu)}
+                <div style={{marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
+                  <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
+                    <div style={{position: 'relative', display: 'inline-block'}}>
+                    <Search 
+                      size={16} 
                       style={{
-                        padding: '8px 12px',
-                        border: '1px solid #ddd',
-                        borderRadius: '4px',
-                        backgroundColor: '#ffffff',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '5px',
-                        transition: 'all 0.2s ease',
-                        transform: showSortMenu ? 'scale(1.05)' : 'scale(1)'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#f5f5f5';
-                        e.currentTarget.style.transform = 'scale(1.05)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#ffffff';
-                        e.currentTarget.style.transform = showSortMenu ? 'scale(1.05)' : 'scale(1)';
-                      }}
-                    >
-                      <Filter size={16} style={{transition: 'transform 0.2s ease', transform: showSortMenu ? 'rotate(180deg)' : 'rotate(0deg)'}} />
-                    </button>
-                    {showSortMenu && (
-                      <div style={{
                         position: 'absolute',
-                        top: '100%',
-                        left: 0,
-                        backgroundColor: '#ffffff',
+                        left: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: '#666',
+                        pointerEvents: 'none'
+                      }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Search..."
+                      value={searchTerm}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                        setSearchTerm(e.target.value);
+                        const filtered = users.filter(user => 
+                          user.kode_produksi?.toLowerCase().includes(e.target.value.toLowerCase()) ||
+                          // user.no_produksi?.toLowerCase().includes(e.target.value.toLowerCase()) ||
+                          user.jenis_material?.toLowerCase().includes(e.target.value.toLowerCase()) ||
+                          user.kode_front?.toLowerCase().includes(e.target.value.toLowerCase()) ||
+                          user.kode_kontraktor?.toLowerCase().includes(e.target.value.toLowerCase())
+                          // String(user.jumlah_sampel).toLowerCase().includes(e.target.value.toLowerCase())
+                        );
+                        setFilteredUsers(filtered);
+                      }}
+                      style={{
+                        width: '300px',
+                        padding: '8px 12px 8px 36px',
                         border: '1px solid #ddd',
                         borderRadius: '4px',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                        zIndex: 1000,
-                        minWidth: '150px'
-                      }}>
-                        <div
-                          onClick={() => {
-                            setSortBy('kode_produksi');
-                            let sorted = [...filteredUsers];
-                            sorted.sort((a, b) => a.kode_produksi.localeCompare(b.kode_produksi));
-                            setFilteredUsers(sorted);
-                            setShowSortMenu(false);
-                          }}
-                          style={{
-                            padding: '8px 12px',
-                            cursor: 'pointer',
-                            borderBottom: '1px solid #eee',
-                            transition: 'background-color 0.2s ease'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = '#f0f0f0';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = 'transparent';
-                          }}
-                        >
-                          Kode Produksi
+                        fontSize: '14px',
+                        backgroundColor: '#ffffff'
+                      }}
+                    />
+                    </div>
+                    <div style={{position: 'relative'}}>
+                      <button
+                        onClick={() => setShowSortMenu(!showSortMenu)}
+                        style={{
+                          padding: '8px 12px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          backgroundColor: '#ffffff',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          transition: 'all 0.2s ease',
+                          transform: showSortMenu ? 'scale(1.05)' : 'scale(1)'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#f5f5f5';
+                          e.currentTarget.style.transform = 'scale(1.05)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = '#ffffff';
+                          e.currentTarget.style.transform = showSortMenu ? 'scale(1.05)' : 'scale(1)';
+                        }}
+                      >
+                        <Filter size={16} style={{transition: 'transform 0.2s ease', transform: showSortMenu ? 'rotate(180deg)' : 'rotate(0deg)'}} />
+                      </button>
+                      {showSortMenu && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '100%',
+                          left: 0,
+                          backgroundColor: '#ffffff',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                          zIndex: 1000,
+                          minWidth: '150px'
+                        }}>
+                          <div
+                            onClick={() => {
+                              setSortBy('kode_produksi');
+                              let sorted = [...filteredUsers];
+                              sorted.sort((a, b) => a.kode_produksi.localeCompare(b.kode_produksi));
+                              setFilteredUsers(sorted);
+                              setShowSortMenu(false);
+                            }}
+                            style={{
+                              padding: '8px 12px',
+                              cursor: 'pointer',
+                              borderBottom: '1px solid #eee',
+                              transition: 'background-color 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = '#f0f0f0';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                            }}
+                          >
+                            Kode Produksi
+                          </div>
+                          <div
+                            onClick={() => {
+                              setSortBy('no_produksi');
+                              let sorted = [...filteredUsers];
+                              sorted.sort((a, b) => String(a.no_produksi).localeCompare(String(b.no_produksi)));
+                              setFilteredUsers(sorted);
+                              setShowSortMenu(false);
+                            }}
+                            style={{
+                              padding: '8px 12px',
+                              cursor: 'pointer',
+                              transition: 'background-color 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = '#f0f0f0';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                            }}
+                          >
+                            No Produksi
+                          </div>
                         </div>
-                        <div
-                          onClick={() => {
-                            setSortBy('no_produksi');
-                            let sorted = [...filteredUsers];
-                            sorted.sort((a, b) => String(a.no_produksi).localeCompare(String(b.no_produksi)));
-                            setFilteredUsers(sorted);
-                            setShowSortMenu(false);
-                          }}
-                          style={{
-                            padding: '8px 12px',
-                            cursor: 'pointer',
-                            transition: 'background-color 0.2s ease'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = '#f0f0f0';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = 'transparent';
-                          }}
-                        >
-                          No Produksi
-                        </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
+                  <button
+                    onClick={exportToExcel}
+                    style={{
+                      background: '#28a745',
+                      color: 'white',
+                      border: 'none',
+                      padding: '8px 12px',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <Download size={14} />
+                    Excel
+                  </button>
                 </div>
                 <div className="table-container">
                     <table className="stylish-table" style={{border: '1px solid #ddd', borderCollapse: 'collapse'}}>
