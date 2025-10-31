@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, TrendingUp, AlertTriangle, LogOut, Calendar, ShieldCheck } from "lucide-react";
+import { Home, TrendingUp, AlertTriangle, LogOut, Calendar, ShieldCheck, ChevronDown, ChevronRight, FileText, BarChart3, Settings, Users } from "lucide-react";
 import { Button } from "./ui/button";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "../lib/supabase"; // Impor supabase
@@ -18,6 +18,7 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
   const [bureu, setBureu] = useState<string | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [showLoadingRate, setShowLoadingRate] = useState<boolean>(false);
+  const [showQCSubmenu, setShowQCSubmenu] = useState<boolean>(false);
 
   useEffect(() => {
     try {
@@ -61,9 +62,19 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
     if (pathname === "/loading_ritase_rate") return "loading-rate";
     if (pathname === "/issues") return "issues";
     if (pathname === "/quality_control") return "quality_control";
+    if (pathname === "/quality_control/gcs") return "qc-gcs";
+    if (pathname === "/quality_control/pra_produksi") return "qc-pra_produksi";
+    if (pathname === "/quality_control/produksi") return "qc-produksi";
+    if (pathname === "/quality_control/kapal") return "qc-kapal";
     if (pathname.startsWith("/realisasi_pengapalan")) return "daily-operations";
     return "home";
   };
+
+  useEffect(() => {
+    if (pathname.startsWith("/quality_control")) {
+      setShowQCSubmenu(true);
+    }
+  }, [pathname]);
 
   const activeTab = getActiveTab();
 
@@ -106,7 +117,16 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
     } else if (tab === "daily-operations") {
       router.push("/realisasi_pengapalan");
     } else if (tab === "quality_control") {
-      router.push("/quality_control");
+      setShowQCSubmenu(!showQCSubmenu);
+      // router.push("/quality_control");
+    } else if (tab === "qc-gcs") {
+      router.push("/quality_control/gcs");
+    } else if (tab === "qc-pra_produksi") {
+      router.push("/quality_control/pra_produksi");
+    } else if (tab === "qc-produksi") {
+      router.push("/quality_control/produksi");
+    } else if (tab === "qc-kapal") {
+      router.push("/quality_control/kapal");
     } else if (tab === "logout") {
       handleLogout();
     }
@@ -121,6 +141,13 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
     { id: "logout", label: "Log out", icon: LogOut },
   ];
 
+  const qcSubMenuItems = [
+    { id: "qc-gcs", label: "GCS", icon: FileText },
+    { id: "qc-pra_produksi", label: "Pra Produksi", icon: BarChart3 },
+    { id: "qc-produksi", label: "Produksi", icon: Settings },
+    { id: "qc-kapal", label: "Kapal/Tkg", icon: Users },
+  ];
+
   const visibleMenuItems = showLoadingRate
     ? menuItems
     : menuItems.filter((m) => m.id !== "loading-rate");
@@ -133,20 +160,50 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
           {visibleMenuItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
+            const isQCParent = item.id === "quality_control" && (activeTab === "quality_control" || activeTab.startsWith("qc-"));
+            
             return (
-              <Button
-                key={item.id}
-                variant={isActive ? "default" : "ghost"}
-                className={`w-full justify-start gap-3 transition-colors ${
-                  isActive
-                    ? "bg-[#0075cf] text-white hover:bg-[#114771]"
-                    : "text-[#273240] hover:bg-[#f1f2f7]"
-                }`}
-                onClick={() => handleTabClick(item.id)}
-              >
-                <Icon className="w-4 h-4" />
-                {item.label}
-              </Button>
+              <div key={item.id}>
+                <Button
+                  variant={isActive || isQCParent ? "default" : "ghost"}
+                  className={`w-full justify-start gap-3 transition-colors ${
+                    isActive || isQCParent
+                      ? "bg-[#0075cf] text-white hover:bg-[#114771]"
+                      : "text-[#273240] hover:bg-[#f1f2f7]"
+                  }`}
+                  onClick={() => handleTabClick(item.id)}
+                >
+                  <Icon className="w-4 h-4" />
+                  {item.label}
+                  {item.id === "quality_control" && (
+                    showQCSubmenu ? <ChevronDown className="w-4 h-4 ml-auto" /> : <ChevronRight className="w-4 h-4 ml-auto" />
+                  )}
+                </Button>
+                
+                {item.id === "quality_control" && showQCSubmenu && (
+                  <div className="ml-6 mt-2 space-y-1">
+                    {qcSubMenuItems.map((subItem) => {
+                      const SubIcon = subItem.icon;
+                      const isSubActive = activeTab === subItem.id;
+                      return (
+                        <Button
+                          key={subItem.id}
+                          variant={isSubActive ? "default" : "ghost"}
+                          className={`w-full justify-start gap-3 text-sm transition-colors ${
+                            isSubActive
+                              ? "bg-[#0075cf] text-white hover:bg-[#114771]"
+                              : "text-[#273240] hover:bg-[#f1f2f7]"
+                          }`}
+                          onClick={() => handleTabClick(subItem.id)}
+                        >
+                          <SubIcon className="w-3 h-3" />
+                          {subItem.label}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             );
           })}
         </nav>

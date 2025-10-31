@@ -2,19 +2,19 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { createBrowserClient } from "../lib/supabase";
-import "../components/stylish-crud-table.css";
+import { createBrowserClient } from "../../lib/supabase";
+import "../../components/stylish-crud-table.css";
 
-import Sidebar from "../components/sidebar";
+import Sidebar from "../../components/sidebar";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from "../components/ui/card";
-import { Button } from "../components/ui/button";
+} from "../../components/ui/card";
+import { Button } from "../../components/ui/button";
 import { Plus, Edit, Trash2, Search, Filter, Download, FileText } from "lucide-react";
-import { useAuth } from "../providers/auth_provider";
+import { useAuth } from "../../providers/auth_provider";
 
 
 interface User {
@@ -47,9 +47,9 @@ export default function StylishCRUDTable() {
 
   const fetchUsers = async () => {
     setLoading(true);
-    console.log('Fetching data from quality_control table...');
+    console.log('Fetching data from gcs table...');
     const { data, error } = await supabase
-      .from('quality_control')
+      .from('gcs')
       .select('*')
       .order('created_at', { ascending: false });
     
@@ -71,8 +71,16 @@ export default function StylishCRUDTable() {
 
     if (editing) {
       const { error } = await supabase
-        .from('quality_control')
-        .update({ kode_produksi: form.kode_produksi, no_produksi: form.no_produksi, jenis_material: form.jenis_material, kode_front: form.kode_front, kode_kontraktor: form.kode_kontraktor, jumlah_sampel: form.jumlah_sampel })
+        .from('gcs')
+        .update({ 
+          kode_produksi: form.kode_produksi, 
+          no_produksi: form.no_produksi, 
+          jenis_material: form.jenis_material, 
+          kode_front: form.kode_front, 
+          kode_kontraktor: form.kode_kontraktor, 
+          jumlah_sampel: form.jumlah_sampel,
+          edited_at: new Date(new Date().getTime() + (7 * 60 * 60 * 1000)).toISOString()
+        })
         .eq('id', form.id);
       
       if (error) {
@@ -81,8 +89,16 @@ export default function StylishCRUDTable() {
       }
     } else {
       const { error } = await supabase
-        .from('quality_control')
-        .insert([{ kode_produksi: form.kode_produksi, no_produksi: form.no_produksi, jenis_material: form.jenis_material, kode_front: form.kode_front, kode_kontraktor: form.kode_kontraktor, jumlah_sampel: form.jumlah_sampel }]);
+        .from('gcs')
+        .insert([{ 
+          kode_produksi: form.kode_produksi, 
+          no_produksi: form.no_produksi, 
+          jenis_material: form.jenis_material, 
+          kode_front: form.kode_front, 
+          kode_kontraktor: form.kode_kontraktor, 
+          jumlah_sampel: form.jumlah_sampel,
+          created_at: new Date(new Date().getTime() + (7 * 60 * 60 * 1000)).toISOString()
+        }]);
       
       if (error) {
         console.error('Insert Error:', error);
@@ -106,7 +122,7 @@ export default function StylishCRUDTable() {
   const handleDelete = async (id: number) => {
     if (confirm('Are you sure?')) {
       setLoading(true);
-      const { error } = await supabase.from('quality_control').delete().eq('id', id);
+      const { error } = await supabase.from('gcs').delete().eq('id', id);
       if (error) {
         console.error('Delete Error:', error);
         console.error('Error message:', error.message);
@@ -172,7 +188,7 @@ export default function StylishCRUDTable() {
         <Sidebar onTabChange={handleTabChange} />
         <div className="crud-container">
             <div className="crud-header">
-                    <h2>Quality Control</h2>
+                    <h2>GCS</h2>
                     <button className="btn-primary" onClick={() => setShowModal(true)} style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
                     <Plus size={16} />
                     Add Data
