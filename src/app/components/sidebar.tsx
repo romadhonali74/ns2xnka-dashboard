@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, TrendingUp, AlertTriangle, LogOut, Calendar, ShieldCheck, ChevronDown, ChevronRight, FileText, BarChart3, Settings, Users } from "lucide-react";
+import { Home, TrendingUp, AlertTriangle, LogOut, Calendar, ShieldCheck, ChevronDown, ChevronRight, FileText, BarChart3, Settings, Users, ChevronLeft, Menu, Ship, Container, PackageSearch } from "lucide-react";
 import { Button } from "./ui/button";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "../lib/supabase"; // Impor supabase
@@ -19,6 +19,7 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
   const [role, setRole] = useState<string | null>(null);
   const [showLoadingRate, setShowLoadingRate] = useState<boolean>(false);
   const [showQCSubmenu, setShowQCSubmenu] = useState<boolean>(false);
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
 
   useEffect(() => {
     try {
@@ -143,9 +144,9 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
 
   const qcSubMenuItems = [
     { id: "qc-gcs", label: "GCS", icon: FileText },
-    { id: "qc-pra_produksi", label: "Pra Produksi", icon: BarChart3 },
-    { id: "qc-produksi", label: "Produksi", icon: Settings },
-    { id: "qc-kapal", label: "Kapal/Tkg", icon: Users },
+    { id: "qc-pra_produksi", label: "Pra Produksi", icon: PackageSearch },
+    { id: "qc-produksi", label: "Produksi", icon: Container },
+    { id: "qc-kapal", label: "Kapal/Tkg", icon: Ship },
   ];
 
   const visibleMenuItems = showLoadingRate
@@ -153,9 +154,18 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
     : menuItems.filter((m) => m.id !== "loading-rate");
 
   return (
-    <div className="w-64 bg-white shadow-sm min-h-screen">
-      <div className="p-6">
-        <h2 className="text-[#273240] font-semibold mb-6">Menu</h2>
+    <div className={`${isCollapsed ? 'w-16' : 'w-64'} bg-white shadow-sm min-h-screen transition-all duration-300 relative`}>
+      <button
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className="absolute -right-3 top-6 bg-white border border-gray-200 rounded-full p-1 shadow-md hover:shadow-xl hover:scale-110 hover:bg-blue-50 hover:border-blue-300 transition-all duration-300 ease-in-out z-10 group"
+      >
+        {isCollapsed ? 
+          <Menu className="w-4 h-4 transition-all duration-300 group-hover:rotate-90 group-hover:text-blue-600" /> : 
+          <ChevronLeft className="w-4 h-4 transition-all duration-300 group-hover:-translate-x-1 group-hover:text-blue-600" />
+        }
+      </button>
+      <div className={`${isCollapsed ? 'p-2' : 'p-6'}`}>
+        {!isCollapsed && <h2 className="text-[#273240] font-semibold mb-6">Menu</h2>}
         <nav className="space-y-2">
           {visibleMenuItems.map((item) => {
             const Icon = item.icon;
@@ -166,21 +176,28 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
               <div key={item.id}>
                 <Button
                   variant={isActive || isQCParent ? "default" : "ghost"}
-                  className={`w-full justify-start gap-3 transition-colors ${
+                  className={`w-full ${isCollapsed ? 'justify-center p-2' : 'justify-start gap-3'} transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg hover:-translate-y-0.5 group relative overflow-hidden ${
                     isActive || isQCParent
-                      ? "bg-[#0075cf] text-white hover:bg-[#114771]"
-                      : "text-[#273240] hover:bg-[#f1f2f7]"
+                      ? "bg-[#0075cf] text-white hover:bg-[#114771] shadow-md"
+                      : "text-[#273240] hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-[#0075cf] hover:border-blue-200"
                   }`}
                   onClick={() => handleTabClick(item.id)}
+                  title={isCollapsed ? item.label : undefined}
                 >
-                  <Icon className="w-4 h-4" />
-                  {item.label}
-                  {item.id === "quality_control" && (
-                    showQCSubmenu ? <ChevronDown className="w-4 h-4 ml-auto" /> : <ChevronRight className="w-4 h-4 ml-auto" />
+                  <Icon className="w-4 h-4 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6 group-hover:drop-shadow-sm" />
+                  {!isCollapsed && (
+                    <>
+                      <span className="transition-all duration-300 group-hover:translate-x-1">{item.label}</span>
+                      {item.id === "quality_control" && (
+                        showQCSubmenu ? 
+                          <ChevronDown className="w-4 h-4 ml-auto transition-all duration-300 group-hover:scale-110 group-hover:text-blue-600" /> : 
+                          <ChevronRight className="w-4 h-4 ml-auto transition-all duration-300 group-hover:scale-110 group-hover:translate-x-1 group-hover:text-blue-600" />
+                      )}
+                    </>
                   )}
                 </Button>
                 
-                {item.id === "quality_control" && showQCSubmenu && (
+                {item.id === "quality_control" && showQCSubmenu && !isCollapsed && (
                   <div className="ml-6 mt-2 space-y-1">
                     {qcSubMenuItems.map((subItem) => {
                       const SubIcon = subItem.icon;
@@ -189,15 +206,15 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
                         <Button
                           key={subItem.id}
                           variant={isSubActive ? "default" : "ghost"}
-                          className={`w-full justify-start gap-3 text-sm transition-colors ${
+                          className={`w-full justify-start gap-3 text-sm transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-md hover:translate-x-2 hover:-translate-y-0.5 group relative overflow-hidden ${
                             isSubActive
-                              ? "bg-[#0075cf] text-white hover:bg-[#114771]"
-                              : "text-[#273240] hover:bg-[#f1f2f7]"
+                              ? "bg-[#0075cf] text-white hover:bg-[#114771] shadow-sm"
+                              : "text-[#273240] hover:bg-gradient-to-r hover:from-blue-50 hover:to-cyan-50 hover:text-[#0075cf] hover:border-l-2 hover:border-blue-400"
                           }`}
                           onClick={() => handleTabClick(subItem.id)}
                         >
-                          <SubIcon className="w-3 h-3" />
-                          {subItem.label}
+                          <SubIcon className="w-3 h-3 transition-all duration-300 group-hover:scale-125 group-hover:rotate-12 group-hover:text-blue-600" />
+                          <span className="transition-all duration-300 group-hover:translate-x-1 group-hover:font-medium">{subItem.label}</span>
                         </Button>
                       );
                     })}

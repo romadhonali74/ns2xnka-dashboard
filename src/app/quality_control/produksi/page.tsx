@@ -15,23 +15,24 @@ import {
 import { Button } from "../../components/ui/button";
 import { Plus, Edit, Trash2, Search, Filter, Download, FileText } from "lucide-react";
 import { useAuth } from "../../providers/auth_provider";
-
+import { text } from "stream/consumers";
 
 interface User {
   id: number;
-  Id_Lab: string;
+  Kode_Lab: string;
+  Kode_Sampel: string;
+  Tanggal_analisa: string;
   Ni: string;
   Co: string;
   Fe: string;
   SiO2: string;
   CaO: string;
   MgO: string;
-  Analis: string;
-  Kode_Sampel: string;
-  Tanggal_analisa: string;
   Jam_Mulai: string;
   Jam_Selesai: string;
-  Tgl_Convert: string;
+  Analis: string;
+  MC: string;
+  Tanggal: string;
 }
 
 export default function StylishCRUDTable() {
@@ -40,8 +41,20 @@ export default function StylishCRUDTable() {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("");
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const [showSpinner, setShowSpinner] = useState<{[key: string]: boolean}>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(100);
+
+  // Format decimal functions
+  const formatDecimal = (value: string) => {
+    if (!value) return '';
+    return value.replace('.', ',');
+  };
+
+  const parseDecimal = (value: string) => {
+    if (!value) return '';
+    return value.replace(',', '.');
+  };
 
   // Format time function
   const formatTime = (timeString: string) => {
@@ -57,22 +70,6 @@ export default function StylishCRUDTable() {
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
     const year = date.getFullYear();
     return `${day}-${month}-${year}`;
-  };
-  const [form, setForm] = useState<{ id: number; Id_Lab: string; Ni: string; Co: string; Fe: string; SiO2: string; CaO: string; MgO: string; Analis: string; Kode_Sampel: string; Tanggal_analisa: string; Jam_Mulai: string; Jam_Selesai: string; Tgl_Convert: string }>({ id: 0, Id_Lab: "", Ni: "", Co: "", Fe: "", SiO2: "", CaO: "", MgO: "", Analis: "", Kode_Sampel: "", Tanggal_analisa: "", Jam_Mulai: "", Jam_Selesai: "", Tgl_Convert: "" });
-  const [editing, setEditing] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [showSpinner, setShowSpinner] = useState<{[key: string]: boolean}>({});
-
-  // Format decimal functions
-  const formatDecimal = (value: string) => {
-    if (!value) return '';
-    return value.replace('.', ',');
-  };
-
-  const parseDecimal = (value: string) => {
-    if (!value) return '';
-    return value.replace(',', '.');
   };
 
   const DecimalInput = ({ label, field, value, onChange }: { label: string, field: string, value: string, onChange: (value: string) => void }) => (
@@ -125,7 +122,46 @@ export default function StylishCRUDTable() {
       </div>
     </div>
   );
+  const [form, setForm] = useState
+      <{
+        id: number;
+        Kode_Lab: string;
+        Kode_Sampel: string;
+        Tanggal_analisa: string;
+        Ni: string;
+        Co: string;
+        Fe: string;
+        SiO2: string;
+        CaO: string;
+        MgO: string;
+        Jam_Mulai: string;
+        Jam_Selesai: string;
+        Analis: string;
+        MC: string;
+        Tanggal: string;        
+      }>({
+        id: 0,
+        Kode_Lab: "",
+        Kode_Sampel: "",
+        Tanggal_analisa: "",
+        Ni: "",
+        Co: "",
+        Fe: "",
+        SiO2: "",
+        CaO: "",
+        MgO: "",
+        Jam_Mulai: "",
+        Jam_Selesai: "",
+        Analis: "",
+        MC: "",
+        Tanggal: "",
+      });
+  const [editing, setEditing] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   
+
+
   useEffect(() => {
     fetchUsers();
   }, []);
@@ -144,7 +180,7 @@ export default function StylishCRUDTable() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/gcs');
+      const response = await fetch('/api/produksi');
       const data = await response.json();
       
       if (!response.ok) {
@@ -167,22 +203,23 @@ export default function StylishCRUDTable() {
     try {
       const method = editing ? 'PUT' : 'POST';
       const body = editing ? form : {
-        Id_Lab: form.Id_Lab,
+        Kode_Lab: form.Kode_Lab,
+        Kode_Sampel: form.Kode_Sampel,
+        Tanggal_analisa: form.Tanggal_analisa,
         Ni: form.Ni,
         Co: form.Co,
         Fe: form.Fe,
         SiO2: form.SiO2,
         CaO: form.CaO,
         MgO: form.MgO,
-        Analis: form.Analis,
-        Kode_Sampel: form.Kode_Sampel,
-        Tanggal_analisa: form.Tanggal_analisa,
         Jam_Mulai: form.Jam_Mulai,
         Jam_Selesai: form.Jam_Selesai,
-        Tgl_Convert: form.Tgl_Convert
+        Analis: form.Analis,
+        MC: form.MC,
+        Tanggal: form.Tanggal,
       };
 
-      const response = await fetch('/api/gcs', {
+      const response = await fetch('/api/produksi', {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
@@ -196,7 +233,23 @@ export default function StylishCRUDTable() {
       console.error('Network Error:', error);
     }
 
-    setForm({ id: 0, Id_Lab: "", Ni: "", Co: "", Fe: "", SiO2: "", CaO: "", MgO: "", Analis: "", Kode_Sampel: "", Tanggal_analisa: "", Jam_Mulai: "", Jam_Selesai: "", Tgl_Convert: ""});
+    setForm({ 
+      id: 0,
+      Kode_Lab: "",
+      Kode_Sampel: "",
+      Tanggal_analisa: "",
+      Ni: "",
+      Co: "",
+      Fe: "",
+      SiO2: "",
+      CaO: "",
+      MgO: "",
+      Jam_Mulai: "",
+      Jam_Selesai: "",
+      Analis: "",
+      MC: "",
+      Tanggal: "",
+    });
     setEditing(false);
     setShowModal(false);
     fetchUsers();
@@ -213,7 +266,7 @@ export default function StylishCRUDTable() {
     if (confirm('Are you sure?')) {
       setLoading(true);
       try {
-        const response = await fetch(`/api/gcs?id=${id}`, {
+        const response = await fetch(`/api/produksi?id=${id}`, {
           method: 'DELETE'
         });
         
@@ -231,7 +284,23 @@ export default function StylishCRUDTable() {
   };
 
   const resetForm = () => {
-    setForm({ id: 0, Id_Lab: "", Ni: "", Co: "", Fe: "", SiO2: "", CaO: "", MgO: "", Analis: "", Kode_Sampel: "", Tanggal_analisa: "", Jam_Mulai: "", Jam_Selesai: "", Tgl_Convert: ""});
+    setForm({ 
+      id: 0,
+      Kode_Lab: "",
+      Kode_Sampel: "",
+      Tanggal_analisa: "",
+      Ni: "",
+      Co: "",
+      Fe: "",
+      SiO2: "",
+      CaO: "",
+      MgO: "",
+      Jam_Mulai: "",
+      Jam_Selesai: "",
+      Analis: "",
+      MC: "",
+      Tanggal: "",
+    });
     setEditing(false);
     setShowModal(false);
   };
@@ -248,21 +317,37 @@ export default function StylishCRUDTable() {
   const currentUsers = filteredUsers.slice(startIndex, endIndex);
 
   const exportToExcel = () => {
-    const headers = ['Id Lab', 'Ni', 'Co', 'Fe', 'SiO2', 'CaO', 'MgO', 'Analis', 'Kode Sampel', 'Tanggal Analisa', 'Jam Mulai', 'Jam Selesai', 'Tgl Convert'];
+    const headers = [
+      'Kode Lab',
+      'Kode Sampel',
+      'Tanggal Analisa',
+      'Ni',
+      'Co',
+      'Fe',
+      'SiO2',
+      'CaO',
+      'MgO',
+      'Jam Mulai',
+      'Jam Selesai',
+      'Analis',
+      'MC(%)',
+      'Tanggal'
+    ];
     const data = filteredUsers.map(user => [
-      user.Id_Lab,
+      user.Kode_Lab,
+      user.Kode_Sampel,
+      user.Tanggal_analisa,
       user.Ni,
       user.Co,
       user.Fe,
       user.SiO2,
       user.CaO,
       user.MgO,
-      user.Analis,
-      user.Kode_Sampel,
-      user.Tanggal_analisa,
       user.Jam_Mulai,
       user.Jam_Selesai,
-      user.Tgl_Convert
+      user.Analis,
+      user.MC,
+      user.Tanggal
     ]);
     
     // Create HTML table for Excel
@@ -285,7 +370,7 @@ export default function StylishCRUDTable() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'GCS.xls';
+    a.download = 'Produksi.xls';
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -299,7 +384,7 @@ export default function StylishCRUDTable() {
         <Sidebar onTabChange={handleTabChange} />
         <div className="crud-container">
             <div className="crud-header">
-                    <h2>GCS</h2>
+                    <h2>Produksi</h2>
                     <button className="btn-primary" onClick={() => setShowModal(true)} style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
                     <Plus size={16} />
                     Add Data
@@ -326,13 +411,10 @@ export default function StylishCRUDTable() {
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                         setSearchTerm(e.target.value);
                         const filtered = users.filter(user => 
-                          user.Id_Lab?.toString().toLowerCase().includes(e.target.value.toLowerCase()) ||
-                          user.Analis?.toString().toLowerCase().includes(e.target.value.toLowerCase()) ||
-                          user.Kode_Sampel?.toString().toLowerCase().includes(e.target.value.toLowerCase()) ||
-                          user.Tanggal_analisa?.toString().toLowerCase().includes(e.target.value.toLowerCase()) ||
-                          user.Jam_Mulai?.toString().toLowerCase().includes(e.target.value.toLowerCase()) ||
-                          user.Jam_Selesai?.toString().toLowerCase().includes(e.target.value.toLowerCase()) ||
-                          user.Tgl_Convert?.toString().toLowerCase().includes(e.target.value.toLowerCase())
+                          user.Kode_Lab?.toString().toLowerCase().includes(e.target.value.toLowerCase()) ||
+                          user.Kode_Sampel?.toLowerCase().includes(e.target.value.toLowerCase()) ||
+                          user.Tanggal_analisa?.toLowerCase().includes(e.target.value.toLowerCase()) ||
+                          user.Analis?.toLowerCase().includes(e.target.value.toLowerCase())
                         );
                         setFilteredUsers(filtered);
                         setCurrentPage(1);
@@ -387,7 +469,30 @@ export default function StylishCRUDTable() {
                         }}>
                           <div
                             onClick={() => {
-                              setSortBy('Kode_Sampel');
+                              setSortBy('Kode Lab');
+                              let sorted = [...filteredUsers];
+                              sorted.sort((a, b) => a.Kode_Lab.localeCompare(b.Kode_Lab));
+                              setFilteredUsers(sorted);
+                              setShowSortMenu(false);
+                            }}
+                            style={{
+                              padding: '8px 12px',
+                              cursor: 'pointer',
+                              // borderBottom: '1px solid #eee',
+                              transition: 'background-color 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = '#f0f0f0';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                            }}
+                          >
+                            Kode Lab
+                          </div>
+                          <div
+                            onClick={() => {
+                              setSortBy('Kode Sampel');
                               let sorted = [...filteredUsers];
                               sorted.sort((a, b) => a.Kode_Sampel.localeCompare(b.Kode_Sampel));
                               setFilteredUsers(sorted);
@@ -396,7 +501,6 @@ export default function StylishCRUDTable() {
                             style={{
                               padding: '8px 12px',
                               cursor: 'pointer',
-                              borderBottom: '1px solid #eee',
                               transition: 'background-color 0.2s ease'
                             }}
                             onMouseEnter={(e) => {
@@ -412,7 +516,7 @@ export default function StylishCRUDTable() {
                             onClick={() => {
                               setSortBy('Analis');
                               let sorted = [...filteredUsers];
-                              sorted.sort((a, b) => String(a.Analis).localeCompare(String(b.Analis)));
+                              sorted.sort((a, b) => a.Analis.localeCompare(b.Analis));
                               setFilteredUsers(sorted);
                               setShowSortMenu(false);
                             }}
@@ -429,7 +533,7 @@ export default function StylishCRUDTable() {
                             }}
                           >
                             Analis
-                          </div>
+                          </div>                           
                         </div>
                       )}
                     </div>
@@ -453,23 +557,24 @@ export default function StylishCRUDTable() {
                     Excel
                   </button>
                 </div>
-                <div className="table-container" style={{overflowX: 'auto', width: '100%'}}>
+                <div className="table-container">
                     <table className="stylish-table" style={{border: '1px solid #ddd', borderCollapse: 'collapse'}}>
                       <thead>
                           <tr>
-                            {/* <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Id Lab</th> */}
-                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Kode Sampel</th>     
+                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Kode Lab</th>
+                            {/* <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Kode Sampel</th> */}
+                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Tanggal Analisa</th>
                             <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Ni</th>
                             <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Co</th>
                             <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Fe</th>
                             <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>SiO2</th>
                             <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>CaO</th>
                             <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>MgO</th>
-                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Analis</th>
                             <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Jam Mulai</th>
-                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Jam Selesai</th>                       
-                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Tanggal Analisa</th>
-                            {/* <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Tgl Convert</th> */}
+                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Jam Selesai</th>
+                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Analis</th>
+                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>MC(%)</th>
+                            {/* <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Tanggal</th> */}
                             <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Actions</th>
                           </tr>
                       </thead>
@@ -485,19 +590,20 @@ export default function StylishCRUDTable() {
                           ) : (
                           currentUsers.map((user) => (
                               <tr key={user.id}>
-                                {/* <td style={{border: '1px solid #ddd', padding: '8px'}}>{user.Id_Lab}</td> */}
-                                <td style={{border: '1px solid #ddd', padding: '8px'}}>{user.Kode_Sampel}</td>                 
+                                <td style={{border: '1px solid #ddd', padding: '8px'}}>{user.Kode_Lab}</td>
+                                {/* <td style={{border: '1px solid #ddd', padding: '8px'}}>{user.Kode_Sampel}</td> */}
+                                <td style={{border: '1px solid #ddd', padding: '8px'}}>{formatDate(user.Tanggal_analisa)}</td>
                                 <td style={{border: '1px solid #ddd', padding: '8px'}}>{user.Ni}</td>
                                 <td style={{border: '1px solid #ddd', padding: '8px'}}>{user.Co}</td>
                                 <td style={{border: '1px solid #ddd', padding: '8px'}}>{user.Fe}</td>
                                 <td style={{border: '1px solid #ddd', padding: '8px'}}>{user.SiO2}</td>
                                 <td style={{border: '1px solid #ddd', padding: '8px'}}>{user.CaO}</td>
                                 <td style={{border: '1px solid #ddd', padding: '8px'}}>{user.MgO}</td>
-                                <td style={{border: '1px solid #ddd', padding: '8px'}}>{user.Analis}</td>
                                 <td style={{border: '1px solid #ddd', padding: '8px'}}>{formatTime(user.Jam_Mulai)}</td>
-                                <td style={{border: '1px solid #ddd', padding: '8px'}}>{formatTime(user.Jam_Selesai)}</td>               
-                                <td style={{border: '1px solid #ddd', padding: '8px'}}>{formatDate(user.Tanggal_analisa)}</td>
-                                {/* <td style={{border: '1px solid #ddd', padding: '8px'}}>{formatDate(user.Tgl_Convert)}</td> */}
+                                <td style={{border: '1px solid #ddd', padding: '8px'}}>{formatTime(user.Jam_Selesai)}</td>
+                                <td style={{border: '1px solid #ddd', padding: '8px'}}>{user.Analis}</td>
+                                <td style={{border: '1px solid #ddd', padding: '8px'}}>{user.MC}</td>                                
+                                {/* <td style={{border: '1px solid #ddd', padding: '8px'}}>{user.Tanggal}</td> */}
                                 <td style={{border: '1px solid #ddd', padding: '8px'}}>
                                     <div style={{display: 'flex', gap: '8px'}}>
                                       <button 
@@ -595,14 +701,32 @@ export default function StylishCRUDTable() {
                             <form onSubmit={handleSubmit} className="modal-form">
                               <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px'}}>
                                 <div className="form-group">
-                                    <label>Id Lab</label>
+                                    <label>Kode Lab</label>
                                     <input
                                     type="text"
-                                    value={form.Id_Lab}
-                                    onChange={(e) => setForm({ ...form, Id_Lab: e.target.value })}
+                                    value={form.Kode_Lab}
+                                    onChange={(e) => setForm({ ...form, Kode_Lab: e.target.value })}
                                     required
                                     />
                                 </div>
+                                <div className="form-group">
+                                    <label>Kode Sampel</label>
+                                    <input
+                                    type="text"
+                                    value={form.Kode_Sampel}
+                                    onChange={(e) => setForm({ ...form, Kode_Sampel: e.target.value })}
+                                    required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Tanggal Analisa</label>
+                                    <input
+                                    type="date"
+                                    value={form.Tanggal_analisa}
+                                    onChange={(e) => setForm({ ...form, Tanggal_analisa: e.target.value })}
+                                    required
+                                    />
+                                </div>                                
                                 <DecimalInput 
                                   label="Ni" 
                                   field="Ni" 
@@ -639,87 +763,6 @@ export default function StylishCRUDTable() {
                                   value={form.MgO} 
                                   onChange={(value) => setForm({ ...form, MgO: value })} 
                                 />
-                                {/* <div className="form-group">
-                                    <label>Ni</label>
-                                    <input
-                                    type="text"
-                                    value={form.Ni}
-                                    onChange={(e) => setForm({ ...form, Ni: e.target.value })}
-                                    required
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>Co</label>
-                                    <input
-                                    type="text"
-                                    value={form.Co}
-                                    onChange={(e) => setForm({ ...form, Co: e.target.value })}
-                                    required
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>Fe</label>
-                                    <input
-                                    type="text"
-                                    value={form.Fe}
-                                    onChange={(e) => setForm({ ...form, Fe: parseFloat(e.target.value) || 0 })}
-                                    required
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>SiO2</label>
-                                    <input
-                                    type="text"
-                                    value={form.SiO2}
-                                    onChange={(e) => setForm({ ...form, SiO2: parseFloat(e.target.value) || 0 })}
-                                    required
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>CaO</label>
-                                    <input
-                                    type="text"
-                                    value={form.CaO}
-                                    onChange={(e) => setForm({ ...form, CaO: parseFloat(e.target.value) || 0 })}
-                                    required
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>MgO</label>
-                                    <input
-                                    type="text"
-                                    value={form.MgO}
-                                    onChange={(e) => setForm({ ...form, MgO: parseFloat(e.target.value) || 0 })}
-                                    required
-                                    />
-                                </div> */}
-                                <div className="form-group">
-                                    <label>Analis</label>
-                                    <input
-                                    type="text"
-                                    value={form.Analis}
-                                    onChange={(e) => setForm({ ...form, Analis: e.target.value })}
-                                    required
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>Kode Sampel</label>
-                                    <input
-                                    type="text"
-                                    value={form.Kode_Sampel}
-                                    onChange={(e) => setForm({ ...form, Kode_Sampel: e.target.value })}
-                                    required
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>Tanggal Analisa</label>
-                                    <input
-                                    type="date"
-                                    value={form.Tanggal_analisa}
-                                    onChange={(e) => setForm({ ...form, Tanggal_analisa: e.target.value })}
-                                    required
-                                    />
-                                </div>
                                 <div className="form-group">
                                     <label>Jam Mulai</label>
                                     <input
@@ -739,15 +782,30 @@ export default function StylishCRUDTable() {
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label>Tanggal Convert</label>
+                                    <label>Analis</label>
                                     <input
-                                    type="date"
-                                    value={form.Tgl_Convert}
-                                    onChange={(e) => setForm({ ...form, Tgl_Convert: e.target.value })}
+                                    type="text"
+                                    value={form.Analis}
+                                    onChange={(e) => setForm({ ...form, Analis: e.target.value })}
                                     required
                                     />
                                 </div>
-                              </div>
+                                <DecimalInput 
+                                  label="MC(%)" 
+                                  field="MC" 
+                                  value={form.MC} 
+                                  onChange={(value) => setForm({ ...form, MC: value })} 
+                                />
+                                <div className="form-group">
+                                    <label>Tanggal</label>
+                                    <input
+                                    type="date"
+                                    value={form.Tanggal}
+                                    onChange={(e) => setForm({ ...form, Tanggal: e.target.value })}
+                                    required
+                                    />
+                                </div>
+                              </div>                            
                               <div className="form-actions">
                                   <button type="button" className="btn-secondary" onClick={resetForm}>
                                   Cancel

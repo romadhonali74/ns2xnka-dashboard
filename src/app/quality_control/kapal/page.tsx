@@ -17,20 +17,6 @@ import { Plus, Edit, Trash2, Search, Filter, Download, FileText } from "lucide-r
 import { useAuth } from "../../providers/auth_provider";
 import { text } from "stream/consumers";
 
-
-// interface User {
-//   id: number;
-//   nama_kapal: string;
-//   kapasitas: number;
-//   jenis_kapal: string;
-//   status: string;
-//   pelabuhan_asal: string;
-//   pelabuhan_tujuan: string;
-//   tanggal_berangkat: string;
-//   tanggal_tiba: string;
-//   created_at?: string;
-// }
-
 interface User {
   id: number;
   No: string;
