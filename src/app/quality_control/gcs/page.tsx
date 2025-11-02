@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { createBrowserClient } from "../../lib/supabase";
+
 import "../../components/stylish-crud-table.css";
 
 import Sidebar from "../../components/sidebar";
@@ -45,7 +45,7 @@ export default function StylishCRUDTable() {
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   
-  const supabase = createBrowserClient();
+
 
   useEffect(() => {
     fetchUsers();
@@ -64,24 +64,19 @@ export default function StylishCRUDTable() {
 
   const fetchUsers = async () => {
     setLoading(true);
-    console.log('Fetching data from gcs table...');
-    const { data, error } = await supabase
-      .from('gcs')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error('Fetch Error:', error);
-      console.error('Error message:', error.message);
-      console.error('Error details:', error.details);
-    } else {
-      console.log('Fetched data:', data);
-      if (data && data.length > 0) {
-        console.log('First row structure:', Object.keys(data[0]));
-        console.log('Sample data:', data[0]);
+    try {
+      const response = await fetch('/api/gcs');
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error('Fetch Error:', data.error);
+      } else {
+        console.log('Fetched data:', data);
+        setUsers(data || []);
+        setFilteredUsers(data || []);
       }
-      setUsers(data || []);
-      setFilteredUsers(data || []);
+    } catch (error) {
+      console.error('Network Error:', error);
     }
     setLoading(false);
   };
@@ -90,55 +85,36 @@ export default function StylishCRUDTable() {
     e.preventDefault();
     setLoading(true);
 
-    if (editing) {
-      const { error } = await supabase
-        .from('gcs')
-        .update({ 
-          Id_Lab: form.Id_Lab, 
-          Ni: form.Ni, 
-          Co: form.Co, 
-          Fe: form.Fe, 
-          SiO2: form.SiO2, 
-          CaO: form.CaO,
-          MgO: form.MgO,
-          Analis: form.Analis,
-          Kode_Sampel: form.Kode_Sampel,
-          Tanggal_analisa: form.Tanggal_analisa,
-          Jam_Mulai: form.Jam_Mulai,
-          Jam_Selesai: form.Jam_Selesai,
-          Tgl_Convert: form.Tgl_Convert,
-          edited_at: new Date(new Date().getTime() + (7 * 60 * 60 * 1000)).toISOString()
-        })
-        .eq('id', form.id);
-      
-      if (error) {
-        console.error('Update Error:', error);
-        console.error('Error message:', error.message);
+    try {
+      const method = editing ? 'PUT' : 'POST';
+      const body = editing ? form : {
+        Id_Lab: form.Id_Lab,
+        Ni: form.Ni,
+        Co: form.Co,
+        Fe: form.Fe,
+        SiO2: form.SiO2,
+        CaO: form.CaO,
+        MgO: form.MgO,
+        Analis: form.Analis,
+        Kode_Sampel: form.Kode_Sampel,
+        Tanggal_analisa: form.Tanggal_analisa,
+        Jam_Mulai: form.Jam_Mulai,
+        Jam_Selesai: form.Jam_Selesai,
+        Tgl_Convert: form.Tgl_Convert
+      };
+
+      const response = await fetch('/api/gcs', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        console.error('Submit Error:', result.error);
       }
-    } else {
-      const { error } = await supabase
-        .from('gcs')
-        .insert([{ 
-          Id_Lab: form.Id_Lab, 
-          Ni: form.Ni, 
-          Co: form.Co, 
-          Fe: form.Fe, 
-          SiO2: form.SiO2, 
-          CaO: form.CaO,
-          MgO: form.MgO,
-          Analis: form.Analis,
-          Kode_Sampel: form.Kode_Sampel,
-          Tanggal_analisa: form.Tanggal_analisa,
-          Jam_Mulai: form.Jam_Mulai,
-          Jam_Selesai: form.Jam_Selesai,
-          Tgl_Convert: form.Tgl_Convert,
-          created_at: new Date(new Date().getTime() + (7 * 60 * 60 * 1000)).toISOString()
-        }]);
-      
-      if (error) {
-        console.error('Insert Error:', error);
-        console.error('Error message:', error.message);
-      }
+    } catch (error) {
+      console.error('Network Error:', error);
     }
 
     setForm({ id: 0, Id_Lab: "", Ni: "", Co: "", Fe: 0, SiO2: 0, CaO: 0, MgO: 0, Analis: "", Kode_Sampel: "", Tanggal_analisa: "", Jam_Mulai: "", Jam_Selesai: "", Tgl_Convert: ""});
@@ -157,12 +133,20 @@ export default function StylishCRUDTable() {
   const handleDelete = async (id: number) => {
     if (confirm('Are you sure?')) {
       setLoading(true);
-      const { error } = await supabase.from('gcs').delete().eq('id', id);
-      if (error) {
-        console.error('Delete Error:', error);
-        console.error('Error message:', error.message);
+      try {
+        const response = await fetch(`/api/gcs?id=${id}`, {
+          method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        if (!response.ok) {
+          console.error('Delete Error:', result.error);
+        } else {
+          fetchUsers();
+        }
+      } catch (error) {
+        console.error('Network Error:', error);
       }
-      else fetchUsers();
       setLoading(false);
     }
   };
