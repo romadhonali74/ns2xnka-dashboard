@@ -6,6 +6,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "../lib/supabase"; // Impor supabase
 import { useEffect, useState } from "react";
 import { useAuth } from "../providers/auth_provider";
+import LogoutLoader from "./logout-loader";
 
 interface SidebarProps {
   onTabChange?: (tab: string) => void;
@@ -20,10 +21,24 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
   const [showLoadingRate, setShowLoadingRate] = useState<boolean>(false);
   const [showQCSubmenu, setShowQCSubmenu] = useState<boolean>(false);
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
+  const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
+
 
   useEffect(() => {
     try {
       const root: any = user ?? null;
+      
+      // TEMPORARY: Hardcode untuk testing QC admin role
+      // Ganti dengan email Anda untuk testing
+      if (user?.email === 'romadhonali74@gmail.com') {
+        setBureu('qc');
+        setRole('admin');
+        setShowLoadingRate(false);
+        
+
+        return;
+      }
+      
       const candidates = [
         root?.app_metadata?.bureu,
         root?.user_metadata?.bureu,
@@ -55,6 +70,11 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
       setRole(null);
       setShowLoadingRate(true);
     }
+    
+    // Debug logs
+    console.log('User email:', user?.email);
+    console.log('Current role:', role);
+    console.log('Current bureu:', bureu);
   }, [user]);
 
   // Fungsi untuk menentukan tab aktif berdasarkan pathname saat ini
@@ -77,14 +97,21 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
     }
   }, [pathname]);
 
+
+
   const activeTab = getActiveTab();
 
   const handleLogout = async () => {
+    setIsLoggingOut(true);
+    
     try {
+      // Delay untuk smooth loading experience
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
 
-      // 2. Hapus semua cookie terkait auth
+      // Hapus semua cookie terkait auth
       document.cookie.split(";").forEach((c) => {
         document.cookie = c
           .replace(/^ +/, "")
@@ -100,6 +127,7 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
       window.location.href = "/login"; // Hard redirect untuk pastikan cache bersih
     } catch (error) {
       console.error("Logout error:", error);
+      setIsLoggingOut(false);
       router.push("/login");
     }
   };
@@ -149,12 +177,25 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
     { id: "qc-kapal", label: "Kapal/Tkg", icon: Ship },
   ];
 
-  const visibleMenuItems = showLoadingRate
-    ? menuItems
-    : menuItems.filter((m) => m.id !== "loading-rate");
+  // Filter menu berdasarkan role dan bureu
+  const getVisibleMenuItems = () => {
+    // Jika user adalah QC admin, hanya tampilkan Quality Control dan Logout
+    if (role === "admin" && bureu === "qc") {
+      return menuItems.filter((m) => m.id === "quality_control" || m.id === "logout");
+    }
+    
+    // Logic existing untuk showLoadingRate
+    return showLoadingRate
+      ? menuItems
+      : menuItems.filter((m) => m.id !== "loading-rate");
+  };
+
+  const visibleMenuItems = getVisibleMenuItems();
 
   return (
-    <div className={`${isCollapsed ? 'w-16' : 'w-64'} bg-white shadow-sm min-h-screen transition-all duration-300 relative`}>
+    <>
+      <LogoutLoader isLoading={isLoggingOut} />
+      <div className={`${isCollapsed ? 'w-16' : 'w-64'} bg-white shadow-sm min-h-screen transition-all duration-300 relative`}>
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
         className="absolute -right-3 top-6 bg-white border border-gray-200 rounded-full p-1 shadow-md hover:shadow-xl hover:scale-110 hover:bg-blue-50 hover:border-blue-300 transition-all duration-300 ease-in-out z-10 group"
@@ -226,5 +267,6 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
         </nav>
       </div>
     </div>
+    </>
   );
 }
