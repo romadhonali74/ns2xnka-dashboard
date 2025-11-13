@@ -15,6 +15,7 @@ import {
 import { Button } from "../../components/ui/button";
 import { Plus, Edit, Trash2, Search, Filter, Download, FileText } from "lucide-react";
 import { useAuth } from "../../providers/auth_provider";
+import { useQCPermission } from "../../hooks/useQCPermission";
 import { text } from "stream/consumers";
 
 interface User {
@@ -35,6 +36,7 @@ interface User {
 }
 
 export default function StylishCRUDTable() {
+  const { canAddData, showActions } = useQCPermission();
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -378,10 +380,12 @@ export default function StylishCRUDTable() {
         <div className="crud-container">
             <div className="crud-header">
                     <h2>Pra Produksi</h2>
-                    <button className="btn-primary" onClick={() => setShowModal(true)} style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
-                    <Plus size={16} />
-                    Add Data
-                    </button>
+                    {canAddData && (
+                      <button className="btn-primary" onClick={() => setShowModal(true)} style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                        <Plus size={16} />
+                        Add Data
+                      </button>
+                    )}
                 </div>
                 <div style={{marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
                   <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
@@ -567,17 +571,17 @@ export default function StylishCRUDTable() {
                             <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Jam Selesai</th>
                             <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Analis</th>
                             {/* <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Tanggal</th> */}
-                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Actions</th>
+                            {showActions && <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Actions</th>}
                           </tr>
                       </thead>
                       <tbody>
                           {loading ? (
                           <tr>
-                              <td colSpan={14} className="loading">Loading...</td>
+                              <td colSpan={showActions ? 12 : 11} className="loading">Loading...</td>
                           </tr>
                           ) : filteredUsers.length === 0 ? (
                           <tr>
-                              <td colSpan={14} className="no-data">No data found</td>
+                              <td colSpan={showActions ? 12 : 11} className="no-data">No data found</td>
                           </tr>
                           ) : (
                           currentUsers.map((user) => (
@@ -595,7 +599,7 @@ export default function StylishCRUDTable() {
                                 <td style={{border: '1px solid #ddd', padding: '8px'}}>{formatTime(user.Jam_Selesai)}</td>
                                 <td style={{border: '1px solid #ddd', padding: '8px'}}>{user.Analis}</td>                                
                                 {/* <td style={{border: '1px solid #ddd', padding: '8px'}}>{formatDate(user.Tanggal)}</td> */}
-                                <td style={{border: '1px solid #ddd', padding: '8px'}}>
+                                {showActions && <td style={{border: '1px solid #ddd', padding: '8px'}}>
                                     <div style={{display: 'flex', gap: '8px'}}>
                                       <button 
                                         onClick={() => handleEdit(user)}
@@ -634,7 +638,7 @@ export default function StylishCRUDTable() {
                                         Delete
                                       </button>
                                     </div>
-                                </td>
+                                </td>}
                               </tr>
                           ))
                           )}

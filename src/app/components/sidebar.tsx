@@ -170,11 +170,6 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
 
   // Filter menu berdasarkan role dan bureu
   const getVisibleMenuItems = () => {
-    // Jika user adalah QC admin, hanya tampilkan Quality Control dan Logout
-    if (role === "admin" && bureu === "qc") {
-      return menuItems.filter((m) => m.id === "quality_control" || m.id === "logout");
-    }
-    
     // Logic existing untuk showLoadingRate
     return showLoadingRate
       ? menuItems
