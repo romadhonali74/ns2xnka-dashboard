@@ -304,7 +304,7 @@ export default function StylishCRUDTable() {
                     <Plus size={16} />
                     Add Data
                     </button>
-                </div>
+            </div>
                 <div style={{marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
                   <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
                     <div style={{position: 'relative', display: 'inline-block'}}>

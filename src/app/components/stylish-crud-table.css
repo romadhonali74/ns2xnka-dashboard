@@ -12,10 +12,17 @@
 }
 
 .crud-header h2 {
-  color: #273240;
+  /* color: #273240;
   font-size: 24px;
   font-weight: 600;
-  margin: 0;
+  margin: 0; */
+  font-family: 'Courier New', monospace; /* A popular modern sans-serif font */
+  font-size: 2.5rem; /* Responsive font size using rem units */
+  font-weight: 700; /* Bold weight for emphasis */
+  color: #333; /* Dark gray for good readability */
+  line-height: 1.2; /* Slightly reduced line height for a compact look */
+  letter-spacing: -0.02em; /* Subtle negative letter spacing for a tighter feel */
+  text-transform: capitalize; /* Capitalize the first letter of each word */
 }
 
 .btn-primary {

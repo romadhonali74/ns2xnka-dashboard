@@ -28,16 +28,7 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
     try {
       const root: any = user ?? null;
       
-      // TEMPORARY: Hardcode untuk testing QC admin role
-      // Ganti dengan email Anda untuk testing
-      if (user?.email === 'romadhonali74@gmail.com') {
-        setBureu('qc');
-        setRole('admin');
-        setShowLoadingRate(false);
-        
 
-        return;
-      }
       
       const candidates = [
         root?.app_metadata?.bureu,
