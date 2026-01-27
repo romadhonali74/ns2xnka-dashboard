@@ -69,14 +69,24 @@ export default function StylishCRUDTable() {
   const [showSpinner, setShowSpinner] = useState<{[key: string]: boolean}>({});
 
   // Format decimal functions
-  const formatDecimal = (value: string) => {
-    if (!value) return '';
-    return value.replace('.', ',');
+  const formatDecimal = (value: any) => {
+    try {
+      if (!value && value !== 0) return '';
+      const str = String(value);
+      return str.replace('.', ',');
+    } catch (error) {
+      return '';
+    }
   };
 
-  const parseDecimal = (value: string) => {
-    if (!value) return '';
-    return value.replace(',', '.');
+  const parseDecimal = (value: any) => {
+    try {
+      if (!value && value !== 0) return '';
+      const str = String(value);
+      return str.replace(',', '.');
+    } catch (error) {
+      return '';
+    }
   };
 
   const DecimalInput = ({ label, field, value, onChange }: { label: string, field: string, value: string, onChange: (value: string) => void }) => (
@@ -316,13 +326,13 @@ export default function StylishCRUDTable() {
   const applyFilters = (search: string, startDate: string, endDate: string) => {
     let filtered = users.filter(user => {
       const matchesSearch = !search || (
-        user.Id_Lab?.toString().toLowerCase().includes(search.toLowerCase()) ||
-        user.Analis?.toString().toLowerCase().includes(search.toLowerCase()) ||
-        user.Kode_Sampel?.toString().toLowerCase().includes(search.toLowerCase()) ||
-        user.Tanggal_analisa?.toString().toLowerCase().includes(search.toLowerCase()) ||
-        user.Jam_Mulai?.toString().toLowerCase().includes(search.toLowerCase()) ||
-        user.Jam_Selesai?.toString().toLowerCase().includes(search.toLowerCase()) ||
-        user.Tgl_Convert?.toString().toLowerCase().includes(search.toLowerCase())
+        String(user.Id_Lab || '').toLowerCase().includes(search.toLowerCase()) ||
+        String(user.Analis || '').toLowerCase().includes(search.toLowerCase()) ||
+        String(user.Kode_Sampel || '').toLowerCase().includes(search.toLowerCase()) ||
+        String(user.Tanggal_analisa || '').toLowerCase().includes(search.toLowerCase()) ||
+        String(user.Jam_Mulai || '').toLowerCase().includes(search.toLowerCase()) ||
+        String(user.Jam_Selesai || '').toLowerCase().includes(search.toLowerCase()) ||
+        String(user.Tgl_Convert || '').toLowerCase().includes(search.toLowerCase())
       );
       
       const matchesDate = (!startDate && !endDate) || (

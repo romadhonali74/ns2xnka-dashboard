@@ -73,67 +73,7 @@ export default function StylishCRUDTable() {
   const [dateFilter, setDateFilter] = useState("");
   const [endDateFilter, setEndDateFilter] = useState("");
 
-  // Format decimal functions
-  const formatDecimal = (value: string) => {
-    if (!value) return '';
-    return value.replace('.', ',');
-  };
-
-  const parseDecimal = (value: string) => {
-    if (!value) return '';
-    return value.replace(',', '.');
-  };
-
-  const DecimalInput = ({ label, field, value, onChange }: { label: string, field: string, value: string, onChange: (value: string) => void }) => (
-    <div className="form-group">
-      <label>{label}</label>
-      <div 
-        style={{position: 'relative'}}
-        onMouseEnter={() => setShowSpinner({...showSpinner, [field]: true})}
-        onMouseLeave={() => setShowSpinner({...showSpinner, [field]: false})}
-      >
-        <input
-          type="text"
-          value={formatDecimal(value)}
-          onChange={(e) => {
-            const val = e.target.value;
-            if (/^[0-9]*[,]?[0-9]*$/.test(val)) {
-              onChange(parseDecimal(val));
-            }
-          }}
-          onFocus={() => setShowSpinner({...showSpinner, [field]: true})}
-          onBlur={() => setShowSpinner({...showSpinner, [field]: false})}
-          placeholder="0,00"
-          style={{paddingRight: showSpinner[field] ? '16px' : '8px'}}
-          required
-        />
-        {showSpinner[field] && (
-          <div style={{position: 'absolute', right: '1px', top: '1px', bottom: '1px', width: '14px', display: 'flex', flexDirection: 'column'}}>
-            <button
-              type="button"
-              onClick={() => {
-                const currentValue = parseFloat(value || '0');
-                onChange((currentValue + 0.01).toFixed(2));
-              }}
-              style={{flex: 1, border: 'none', background: '#e9ecef', cursor: 'pointer', fontSize: '8px', borderRadius: '0 2px 0 0'}}
-            >
-              ▲
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const currentValue = parseFloat(value || '0');
-                onChange(Math.max(0, currentValue - 0.01).toFixed(2));
-              }}
-              style={{flex: 1, border: 'none', background: '#e9ecef', cursor: 'pointer', fontSize: '8px', borderRadius: '0 0 2px 0'}}
-            >
-              ▼
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  // Format decimal functions - REMOVED to fix replace error
   // const [form, setForm] = useState<{ id: number; nama_kapal: string; kapasitas: number; jenis_kapal: string; status: string; pelabuhan_asal: string; pelabuhan_tujuan: string; tanggal_berangkat: string; tanggal_tiba: string }>({ id: 0, nama_kapal: "", kapasitas: 0, jenis_kapal: "", status: "", pelabuhan_asal: "", pelabuhan_tujuan: "", tanggal_berangkat: "", tanggal_tiba: "" });
   const [form, setForm] = useState
       <{
@@ -374,9 +314,56 @@ export default function StylishCRUDTable() {
   };
 
   const handleEdit = (user: User) => {
-    setForm(user);
-    setEditing(true);
-    setShowModal(true);
+    try {
+      const safeUser = {
+        id: user.id || 0,
+        No: user.No || "",
+        Tahun: user.Tahun || "",
+        Kode: user.Kode || "",
+        Nama_Kapal: user.Nama_Kapal || "",
+        Lokasi: user.Lokasi || "",
+        SB: user.SB || "",
+        Ni: user.Ni || "",
+        Co: user.Co || "",
+        Fe: user.Fe || "",
+        SiO2: user.SiO2 || "",
+        CaO: user.CaO || "",
+        MgO: user.MgO || "",
+        Jam_Mulai: user.Jam_Mulai || "",
+        Jam_Selesai: user.Jam_Selesai || "",
+        Analis: user.Analis || "",
+        Tgl_Analisa: user.Tgl_Analisa || "",
+        Ni_C: user.Ni_C || "",
+        MC: user.MC || "",
+        Tanggal_Conversi: user.Tanggal_Conversi || "",
+        W1_1: user.W1_1 || "",
+        W1_2: user.W1_2 || "",
+        W0_1: user.W0_1 || "",
+        W02: user.W02 || "",
+        Vp_1: user.Vp_1 || "",
+        Vp_2: user.Vp_2 || "",
+        Faktor1: user.Faktor1 || "",
+        Faktor2: user.Faktor2 || "",
+        X_Ni_C: user.X_Ni_C || "",
+        Jam_Mulai2: user.Jam_Mulai2 || "",
+        Jam_Selesai3: user.Jam_Selesai3 || "",
+        Analis1: user.Analis1 || "",
+        Analis2: user.Analis2 || "",
+        W1: user.W1 || "",
+        W2: user.W2 || "",
+        Diff_Wet: user.Diff_Wet || "",
+        Avg_Ni_Wet: user.Avg_Ni_Wet || "",
+        X_Ni1A: user.X_Ni1A || "",
+        Diff: user.Diff || "",
+        X_Ni2: user.X_Ni2 || "",
+        Diff2: user.Diff2 || ""
+      };
+      setForm(safeUser);
+      setEditing(true);
+      setShowModal(true);
+    } catch (error) {
+      console.error('Edit error:', error);
+    }
   };
 
   const handleDelete = async (id: number) => {
@@ -585,19 +572,35 @@ export default function StylishCRUDTable() {
   };
 
   const applyFilters = (search: string, startDate: string, endDate: string) => {
-    let filtered = users.filter(user => {
-      const matchesSearch = !search || (
-        user.No?.toString().toLowerCase().includes(search.toLowerCase()) ||
-        user.Nama_Kapal?.toLowerCase().includes(search.toLowerCase()) ||
-        user.Kode?.toLowerCase().includes(search.toLowerCase())
-      );
+    if (!search && !startDate && !endDate) {
+      setFilteredUsers(users);
+      return;
+    }
+    
+    const filtered = users.filter(user => {
+      let matchesSearch = true;
+      if (search) {
+        matchesSearch = false;
+        try {
+          if (user.No && user.No.toString().indexOf(search) >= 0) matchesSearch = true;
+          if (user.Nama_Kapal && user.Nama_Kapal.toString().indexOf(search) >= 0) matchesSearch = true;
+          if (user.Kode && user.Kode.toString().indexOf(search) >= 0) matchesSearch = true;
+        } catch (e) {
+          // ignore error
+        }
+      }
       
-      const matchesDate = (!startDate && !endDate) || (
-        user.Tgl_Analisa && (
-          (!startDate || user.Tgl_Analisa >= startDate) &&
-          (!endDate || user.Tgl_Analisa <= endDate)
-        )
-      );
+      let matchesDate = true;
+      if (startDate || endDate) {
+        matchesDate = false;
+        if (user.Tgl_Analisa) {
+          if (!startDate || user.Tgl_Analisa >= startDate) {
+            if (!endDate || user.Tgl_Analisa <= endDate) {
+              matchesDate = true;
+            }
+          }
+        }
+      }
       
       return matchesSearch && matchesDate;
     });
@@ -842,18 +845,19 @@ export default function StylishCRUDTable() {
                     <table className="stylish-table" style={{border: '1px solid #ddd', borderCollapse: 'collapse'}}>
                       <thead>
                           <tr>
-                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>No</th>
+                            {/* <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>No</th> */}
+                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Tahun</th>
                             <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Kode</th>
                             <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Nama Kapal</th>
-                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>SB</th>
-                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Ni</th>
-                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px', whiteSpace: 'nowrap'}}>Ni Wet</th>
-                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Diff</th>
-                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Co</th>
-                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Fe</th>
-                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>SiO2</th>
-                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>CaO</th>
-                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>MgO</th>
+                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>SB(%)</th>
+                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Ni(%)</th>
+                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px', whiteSpace: 'nowrap'}}>Ni Wet(%)</th>
+                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Diff(%)</th>
+                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Co(%)</th>
+                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Fe(%)</th>
+                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>SiO2(%)</th>
+                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>CaO(%)</th>
+                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>MgO(%)</th>
                             <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>MC(%)</th>
                             {showActions && <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Actions</th>}
 
@@ -871,7 +875,8 @@ export default function StylishCRUDTable() {
                           ) : (
                           filteredUsers.map((user) => (
                               <tr key={user.id}>
-                                <td style={{border: '1px solid #ddd', padding: '8px'}}>{user.No}</td>
+                                {/* <td style={{border: '1px solid #ddd', padding: '8px'}}>{user.No}</td> */}
+                                <td style={{border: '1px solid #ddd', padding: '8px'}}>{user.Tahun}</td>
                                 <td style={{border: '1px solid #ddd', padding: '8px'}}>{user.Kode}</td>
                                 <td style={{border: '1px solid #ddd', padding: '8px'}}>{user.Nama_Kapal}</td>
                                 <td style={{border: '1px solid #ddd', padding: '8px'}}>{user.SB}</td>
@@ -941,6 +946,15 @@ export default function StylishCRUDTable() {
                             <form onSubmit={handleSubmit} className="modal-form">
                               <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px'}}>
                                 <div className="form-group">
+                                    <label>No</label>
+                                    <input
+                                    type="text"
+                                    value={form.No}
+                                    onChange={(e) => setForm({ ...form, No: e.target.value })}
+                                    required
+                                    />
+                                </div>
+                                <div className="form-group">
                                     <label>Tahun</label>
                                     <input
                                     type="number"
@@ -985,42 +999,66 @@ export default function StylishCRUDTable() {
                                     required
                                     />
                                 </div>
-                                <DecimalInput 
-                                  label="Ni" 
-                                  field="Ni" 
-                                  value={form.Ni} 
-                                  onChange={(value) => setForm({ ...form, Ni: value })} 
-                                />
-                                <DecimalInput 
-                                  label="Co" 
-                                  field="Co" 
-                                  value={form.Co} 
-                                  onChange={(value) => setForm({ ...form, Co: value })} 
-                                />
-                                <DecimalInput 
-                                  label="Fe" 
-                                  field="Fe" 
-                                  value={form.Fe} 
-                                  onChange={(value) => setForm({ ...form, Fe: value })} 
-                                />
-                                <DecimalInput 
-                                  label="SiO2" 
-                                  field="SiO2" 
-                                  value={form.SiO2} 
-                                  onChange={(value) => setForm({ ...form, SiO2: value })} 
-                                />
-                                <DecimalInput 
-                                  label="CaO" 
-                                  field="CaO" 
-                                  value={form.CaO} 
-                                  onChange={(value) => setForm({ ...form, CaO: value })} 
-                                />
-                                <DecimalInput 
-                                  label="MgO" 
-                                  field="MgO" 
-                                  value={form.MgO} 
-                                  onChange={(value) => setForm({ ...form, MgO: value })} 
-                                />
+                                <div className="form-group">
+                                    <label>Ni</label>
+                                    <input
+                                    type="text"
+                                    value={form.Ni}
+                                    onChange={(e) => setForm({ ...form, Ni: e.target.value })}
+                                    placeholder="0,00"
+                                    required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Co</label>
+                                    <input
+                                    type="text"
+                                    value={form.Co}
+                                    onChange={(e) => setForm({ ...form, Co: e.target.value })}
+                                    placeholder="0,00"
+                                    required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Fe</label>
+                                    <input
+                                    type="text"
+                                    value={form.Fe}
+                                    onChange={(e) => setForm({ ...form, Fe: e.target.value })}
+                                    placeholder="0,00"
+                                    required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>SiO2</label>
+                                    <input
+                                    type="text"
+                                    value={form.SiO2}
+                                    onChange={(e) => setForm({ ...form, SiO2: e.target.value })}
+                                    placeholder="0,00"
+                                    required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>CaO</label>
+                                    <input
+                                    type="text"
+                                    value={form.CaO}
+                                    onChange={(e) => setForm({ ...form, CaO: e.target.value })}
+                                    placeholder="0,00"
+                                    required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>MgO</label>
+                                    <input
+                                    type="text"
+                                    value={form.MgO}
+                                    onChange={(e) => setForm({ ...form, MgO: e.target.value })}
+                                    placeholder="0,00"
+                                    required
+                                    />
+                                </div>
                                 <div className="form-group">
                                     <label>Jam Mulai</label>
                                     <input
@@ -1057,12 +1095,25 @@ export default function StylishCRUDTable() {
                                     required
                                     />
                                 </div>
-                                <DecimalInput 
-                                  label="Ni C" 
-                                  field="Ni_C" 
-                                  value={form.Ni_C} 
-                                  onChange={(value) => setForm({ ...form, Ni_C: value })} 
-                                />
+                                <div className="form-group">
+                                    <label>Ni C</label>
+                                    <input
+                                    type="text"
+                                    value={form.Ni_C}
+                                    onChange={(e) => setForm({ ...form, Ni_C: e.target.value })}
+                                    placeholder="0,00"
+                                    required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Tanggal Conversi</label>
+                                    <input
+                                    type="date"
+                                    value={form.Tanggal_Conversi}
+                                    onChange={(e) => setForm({ ...form, Tanggal_Conversi: e.target.value })}
+                                    required
+                                    />
+                                </div>
                                 <div className="form-group">
                                     <label>W1 1</label>
                                     <input
@@ -1099,18 +1150,26 @@ export default function StylishCRUDTable() {
                                     required
                                     />
                                 </div>
-                                <DecimalInput 
-                                  label="Vp 1" 
-                                  field="Vp_1" 
-                                  value={form.Vp_1} 
-                                  onChange={(value) => setForm({ ...form, Vp_1: value })} 
-                                />
-                                <DecimalInput 
-                                  label="Vp 2" 
-                                  field="Vp_2" 
-                                  value={form.Vp_2} 
-                                  onChange={(value) => setForm({ ...form, Vp_2: value })} 
-                                />
+                                <div className="form-group">
+                                    <label>Vp 1</label>
+                                    <input
+                                    type="text"
+                                    value={form.Vp_1}
+                                    onChange={(e) => setForm({ ...form, Vp_1: e.target.value })}
+                                    placeholder="0,00"
+                                    required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Vp 2</label>
+                                    <input
+                                    type="text"
+                                    value={form.Vp_2}
+                                    onChange={(e) => setForm({ ...form, Vp_2: e.target.value })}
+                                    placeholder="0,00"
+                                    required
+                                    />
+                                </div>
                                 <div className="form-group">
                                     <label>Faktor 1</label>
                                     <input
@@ -1129,12 +1188,16 @@ export default function StylishCRUDTable() {
                                     required
                                     />
                                 </div>
-                                <DecimalInput 
-                                  label="X Ni C" 
-                                  field="X_Ni_C" 
-                                  value={form.X_Ni_C} 
-                                  onChange={(value) => setForm({ ...form, X_Ni_C: value })} 
-                                />
+                                <div className="form-group">
+                                    <label>X Ni C</label>
+                                    <input
+                                    type="text"
+                                    value={form.X_Ni_C}
+                                    onChange={(e) => setForm({ ...form, X_Ni_C: e.target.value })}
+                                    placeholder="0,00"
+                                    required
+                                    />
+                                </div>
                                 <div className="form-group">
                                     <label>Jam Mulai2</label>
                                     <input
@@ -1171,48 +1234,96 @@ export default function StylishCRUDTable() {
                                     required
                                     />
                                 </div>
-                                <DecimalInput 
-                                  label="X Ni1(A)" 
-                                  field="X_Ni1A" 
-                                  value={form.X_Ni1A} 
-                                  onChange={(value) => setForm({ ...form, X_Ni1A: value })} 
-                                />
-                                <DecimalInput 
-                                  label="MC(%)" 
-                                  field="MC" 
-                                  value={form.MC} 
-                                  onChange={(value) => setForm({ ...form, MC: value })} 
-                                />
-                                <DecimalInput 
-                                  label="Diff Wet" 
-                                  field="Diff_Wet" 
-                                  value={form.Diff_Wet} 
-                                  onChange={(value) => setForm({ ...form, Diff_Wet: value })} 
-                                />
-                                <DecimalInput 
-                                  label="Avg Ni Wet" 
-                                  field="Avg_Ni_Wet" 
-                                  value={form.Avg_Ni_Wet} 
-                                  onChange={(value) => setForm({ ...form, Avg_Ni_Wet: value })} 
-                                />
-                                <DecimalInput 
-                                  label="Diff" 
-                                  field="Diff" 
-                                  value={form.Diff} 
-                                  onChange={(value) => setForm({ ...form, Diff: value })} 
-                                />
-                                <DecimalInput 
-                                  label="X Ni2" 
-                                  field="X_Ni2" 
-                                  value={form.X_Ni2} 
-                                  onChange={(value) => setForm({ ...form, X_Ni2: value })} 
-                                />
-                                <DecimalInput 
-                                  label="Diff2" 
-                                  field="Diff2" 
-                                  value={form.Diff2} 
-                                  onChange={(value) => setForm({ ...form, Diff2: value })} 
-                                />
+                                <div className="form-group">
+                                    <label>W1</label>
+                                    <input
+                                    type="text"
+                                    value={form.W1}
+                                    onChange={(e) => setForm({ ...form, W1: e.target.value })}
+                                    placeholder="0,00"
+                                    required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>W2</label>
+                                    <input
+                                    type="text"
+                                    value={form.W2}
+                                    onChange={(e) => setForm({ ...form, W2: e.target.value })}
+                                    placeholder="0,00"
+                                    required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>X Ni1(A)</label>
+                                    <input
+                                    type="text"
+                                    value={form.X_Ni1A}
+                                    onChange={(e) => setForm({ ...form, X_Ni1A: e.target.value })}
+                                    placeholder="0,00"
+                                    required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>MC(%)</label>
+                                    <input
+                                    type="text"
+                                    value={form.MC}
+                                    onChange={(e) => setForm({ ...form, MC: e.target.value })}
+                                    placeholder="0,00"
+                                    required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Diff Wet</label>
+                                    <input
+                                    type="text"
+                                    value={form.Diff_Wet}
+                                    onChange={(e) => setForm({ ...form, Diff_Wet: e.target.value })}
+                                    placeholder="0,00"
+                                    required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Avg Ni Wet</label>
+                                    <input
+                                    type="text"
+                                    value={form.Avg_Ni_Wet}
+                                    onChange={(e) => setForm({ ...form, Avg_Ni_Wet: e.target.value })}
+                                    placeholder="0,00"
+                                    required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Diff</label>
+                                    <input
+                                    type="text"
+                                    value={form.Diff}
+                                    onChange={(e) => setForm({ ...form, Diff: e.target.value })}
+                                    placeholder="0,00"
+                                    required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>X Ni2</label>
+                                    <input
+                                    type="text"
+                                    value={form.X_Ni2}
+                                    onChange={(e) => setForm({ ...form, X_Ni2: e.target.value })}
+                                    placeholder="0,00"
+                                    required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Diff2</label>
+                                    <input
+                                    type="text"
+                                    value={form.Diff2}
+                                    onChange={(e) => setForm({ ...form, Diff2: e.target.value })}
+                                    placeholder="0,00"
+                                    required
+                                    />
+                                </div>
                               </div>                            
                               <div className="form-actions">
                                   <button type="button" className="btn-secondary" onClick={resetForm}>

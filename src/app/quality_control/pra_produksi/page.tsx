@@ -65,14 +65,24 @@ export default function StylishCRUDTable() {
   };
 
   // Format decimal functions
-  const formatDecimal = (value: string) => {
-    if (!value) return '';
-    return value.replace('.', ',');
+  const formatDecimal = (value: any) => {
+    try {
+      if (!value && value !== 0) return '';
+      const str = String(value);
+      return str.replace('.', ',');
+    } catch (error) {
+      return '';
+    }
   };
 
-  const parseDecimal = (value: string) => {
-    if (!value) return '';
-    return value.replace(',', '.');
+  const parseDecimal = (value: any) => {
+    try {
+      if (!value && value !== 0) return '';
+      const str = String(value);
+      return str.replace(',', '.');
+    } catch (error) {
+      return '';
+    }
   };
 
   const DecimalInput = ({ label, field, value, onChange }: { label: string, field: string, value: string, onChange: (value: string) => void }) => (
@@ -85,11 +95,21 @@ export default function StylishCRUDTable() {
       >
         <input
           type="text"
-          value={formatDecimal(value)}
+          value={(() => {
+            try {
+              return formatDecimal(value);
+            } catch (error) {
+              return '';
+            }
+          })()}
           onChange={(e) => {
             const val = e.target.value;
             if (/^[0-9]*[,]?[0-9]*$/.test(val)) {
-              onChange(parseDecimal(val));
+              try {
+                onChange(parseDecimal(val));
+              } catch (error) {
+                onChange('');
+              }
             }
           }}
           onFocus={() => setShowSpinner({...showSpinner, [field]: true})}
@@ -394,10 +414,10 @@ export default function StylishCRUDTable() {
   const applyFilters = (search: string, startDate: string, endDate: string) => {
     let filtered = users.filter(user => {
       const matchesSearch = !search || (
-        user.Kode_Lab?.toString().toLowerCase().includes(search.toLowerCase()) ||
-        user.Kode_Sampel?.toLowerCase().includes(search.toLowerCase()) ||
-        user.Tanggal_analisa?.toLowerCase().includes(search.toLowerCase()) ||
-        user.Analis?.toLowerCase().includes(search.toLowerCase())
+        String(user.Kode_Lab || '').toLowerCase().includes(search.toLowerCase()) ||
+        String(user.Kode_Sampel || '').toLowerCase().includes(search.toLowerCase()) ||
+        String(user.Tanggal_analisa || '').toLowerCase().includes(search.toLowerCase()) ||
+        String(user.Analis || '').toLowerCase().includes(search.toLowerCase())
       );
       
       const matchesDate = (!startDate && !endDate) || (
@@ -815,42 +835,66 @@ export default function StylishCRUDTable() {
                                     required
                                     />
                                 </div>                                
-                                <DecimalInput 
-                                  label="Ni" 
-                                  field="Ni" 
-                                  value={form.Ni} 
-                                  onChange={(value) => setForm({ ...form, Ni: value })} 
-                                />
-                                <DecimalInput 
-                                  label="Co" 
-                                  field="Co" 
-                                  value={form.Co} 
-                                  onChange={(value) => setForm({ ...form, Co: value })} 
-                                />
-                                <DecimalInput 
-                                  label="Fe" 
-                                  field="Fe" 
-                                  value={form.Fe} 
-                                  onChange={(value) => setForm({ ...form, Fe: value })} 
-                                />
-                                <DecimalInput 
-                                  label="SiO2" 
-                                  field="SiO2" 
-                                  value={form.SiO2} 
-                                  onChange={(value) => setForm({ ...form, SiO2: value })} 
-                                />
-                                <DecimalInput 
-                                  label="CaO" 
-                                  field="CaO" 
-                                  value={form.CaO} 
-                                  onChange={(value) => setForm({ ...form, CaO: value })} 
-                                />
-                                <DecimalInput 
-                                  label="MgO" 
-                                  field="MgO" 
-                                  value={form.MgO} 
-                                  onChange={(value) => setForm({ ...form, MgO: value })} 
-                                />
+                                <div className="form-group">
+                                    <label>Ni</label>
+                                    <input
+                                    type="text"
+                                    value={form.Ni}
+                                    onChange={(e) => setForm({ ...form, Ni: e.target.value })}
+                                    placeholder="0,00"
+                                    required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Co</label>
+                                    <input
+                                    type="text"
+                                    value={form.Co}
+                                    onChange={(e) => setForm({ ...form, Co: e.target.value })}
+                                    placeholder="0,00"
+                                    required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Fe</label>
+                                    <input
+                                    type="text"
+                                    value={form.Fe}
+                                    onChange={(e) => setForm({ ...form, Fe: e.target.value })}
+                                    placeholder="0,00"
+                                    required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>SiO2</label>
+                                    <input
+                                    type="text"
+                                    value={form.SiO2}
+                                    onChange={(e) => setForm({ ...form, SiO2: e.target.value })}
+                                    placeholder="0,00"
+                                    required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>CaO</label>
+                                    <input
+                                    type="text"
+                                    value={form.CaO}
+                                    onChange={(e) => setForm({ ...form, CaO: e.target.value })}
+                                    placeholder="0,00"
+                                    required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>MgO</label>
+                                    <input
+                                    type="text"
+                                    value={form.MgO}
+                                    onChange={(e) => setForm({ ...form, MgO: e.target.value })}
+                                    placeholder="0,00"
+                                    required
+                                    />
+                                </div>
                                 <div className="form-group">
                                     <label>Jam Mulai</label>
                                     <input
