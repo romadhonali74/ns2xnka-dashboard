@@ -163,7 +163,7 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
 
   const qcSubMenuItems = [
     { id: "qc-gcs", label: "GCS", icon: FileText },
-    { id: "qc-pra_produksi", label: "Pra Produksi", icon: PackageSearch },
+    { id: "qc-pra_produksi", label: "ETO to EFO", icon: PackageSearch },
     { id: "qc-produksi", label: "Produksi", icon: Container },
     { id: "qc-kapal", label: "Kapal/Tkg", icon: Ship },
   ];

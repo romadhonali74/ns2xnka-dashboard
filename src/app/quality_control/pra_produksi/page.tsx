@@ -45,6 +45,8 @@ export default function StylishCRUDTable() {
   const [showSpinner, setShowSpinner] = useState<{[key: string]: boolean}>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(100);
+  const [dateFilter, setDateFilter] = useState("");
+  const [endDateFilter, setEndDateFilter] = useState("");
 
   // Format time function
   const formatTime = (timeString: string) => {
@@ -345,9 +347,27 @@ export default function StylishCRUDTable() {
       user.Tanggal
     ]);
     
+    // Create filter info
+    const filterInfo = [];
+    if (dateFilter || endDateFilter) {
+      const startDate = dateFilter ? new Date(dateFilter).toLocaleDateString('id-ID') : 'Awal';
+      const endDate = endDateFilter ? new Date(endDateFilter).toLocaleDateString('id-ID') : 'Akhir';
+      filterInfo.push(`Filter Tanggal: ${startDate} - ${endDate}`);
+    }
+    if (searchTerm) {
+      filterInfo.push(`Pencarian: ${searchTerm}`);
+    }
+    
     // Create HTML table for Excel
     let htmlContent = `
       <table border="1" style="border-collapse: collapse; width: 100%;">
+        ${filterInfo.length > 0 ? `
+          <tr>
+            <td colspan="${headers.length}" style="padding: 8px; text-align: center; background-color: #e9ecef; font-weight: bold;">
+              ${filterInfo.join(' | ')}
+            </td>
+          </tr>
+        ` : ''}
         <thead>
           <tr style="background-color: #f2f2f2; font-weight: bold;">
             ${headers.map(header => `<th style="padding: 8px; text-align: center;">${header}</th>`).join('')}
@@ -365,9 +385,33 @@ export default function StylishCRUDTable() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'PraProduksi.xls';
+    const fileName = `PraProduksi${dateFilter || endDateFilter ? `_${dateFilter || 'start'}-${endDateFilter || 'end'}` : ''}.xls`;
+    a.download = fileName;
     a.click();
     window.URL.revokeObjectURL(url);
+  };
+
+  const applyFilters = (search: string, startDate: string, endDate: string) => {
+    let filtered = users.filter(user => {
+      const matchesSearch = !search || (
+        user.Kode_Lab?.toString().toLowerCase().includes(search.toLowerCase()) ||
+        user.Kode_Sampel?.toLowerCase().includes(search.toLowerCase()) ||
+        user.Tanggal_analisa?.toLowerCase().includes(search.toLowerCase()) ||
+        user.Analis?.toLowerCase().includes(search.toLowerCase())
+      );
+      
+      const matchesDate = (!startDate && !endDate) || (
+        user.Tanggal_analisa && (
+          (!startDate || user.Tanggal_analisa >= startDate) &&
+          (!endDate || user.Tanggal_analisa <= endDate)
+        )
+      );
+      
+      return matchesSearch && matchesDate;
+    });
+    
+    setFilteredUsers(filtered);
+    setCurrentPage(1);
   };
 
 
@@ -379,7 +423,7 @@ export default function StylishCRUDTable() {
         <Sidebar onTabChange={handleTabChange} />
         <div className="crud-container">
             <div className="crud-header">
-                    <h2>Pra Produksi</h2>
+                    <h2>ETO to EFO</h2>
                     {canAddData && (
                       <button className="btn-primary" onClick={() => setShowModal(true)} style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
                         <Plus size={16} />
@@ -407,14 +451,7 @@ export default function StylishCRUDTable() {
                       value={searchTerm}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                         setSearchTerm(e.target.value);
-                        const filtered = users.filter(user => 
-                          user.Kode_Lab?.toString().toLowerCase().includes(e.target.value.toLowerCase()) ||
-                          user.Kode_Sampel?.toLowerCase().includes(e.target.value.toLowerCase()) ||
-                          user.Tanggal_analisa?.toLowerCase().includes(e.target.value.toLowerCase()) ||
-                          user.Analis?.toLowerCase().includes(e.target.value.toLowerCase())
-                        );
-                        setFilteredUsers(filtered);
-                        setCurrentPage(1);
+                        applyFilters(e.target.value, dateFilter, endDateFilter);
                       }}
                       style={{
                         width: '300px',
@@ -426,7 +463,63 @@ export default function StylishCRUDTable() {
                       }}
                     />
                     </div>
-                    <div style={{position: 'relative'}}>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                      <input
+                        type="date"
+                        value={dateFilter}
+                        onChange={(e) => {
+                          setDateFilter(e.target.value);
+                          applyFilters(searchTerm, e.target.value, endDateFilter);
+                        }}
+                        style={{
+                          padding: '8px 12px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '14px',
+                          backgroundColor: '#ffffff',
+                          colorScheme: 'light',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          cursor: 'pointer'
+                        }}
+                      />
+                      <span style={{fontSize: '14px', color: '#666'}}>to</span>
+                      <input
+                        type="date"
+                        value={endDateFilter}
+                        onChange={(e) => {
+                          setEndDateFilter(e.target.value);
+                          applyFilters(searchTerm, dateFilter, e.target.value);
+                        }}
+                        style={{
+                          padding: '8px 12px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '14px',
+                          backgroundColor: '#ffffff',
+                          colorScheme: 'light',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          cursor: 'pointer'
+                        }}
+                      />
+                      <button
+                        onClick={() => {
+                          setDateFilter('');
+                          setEndDateFilter('');
+                          applyFilters(searchTerm, '', '');
+                        }}
+                        style={{
+                          padding: '8px 12px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          backgroundColor: '#f8f9fa',
+                          cursor: 'pointer',
+                          fontSize: '12px'
+                        }}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                    {/* <div style={{position: 'relative'}}>
                       <button
                         onClick={() => setShowSortMenu(!showSortMenu)}
                         style={{
@@ -533,7 +626,7 @@ export default function StylishCRUDTable() {
                           </div>                           
                         </div>
                       )}
-                    </div>
+                    </div> */}
                   </div>
                   <button
                     onClick={exportToExcel}
@@ -551,14 +644,14 @@ export default function StylishCRUDTable() {
                     }}
                   >
                     <Download size={14} />
-                    Excel
+                    Export Data
                   </button>
                 </div>
                 <div className="table-container">
                     <table className="stylish-table" style={{border: '1px solid #ddd', borderCollapse: 'collapse'}}>
                       <thead>
                           <tr>
-                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Kode Lab</th>
+                            <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Kode Sampel</th>
                             {/* <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Kode Sampel</th> */}
                             <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Tanggal Analisa</th>
                             <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Ni</th>
@@ -696,11 +789,11 @@ export default function StylishCRUDTable() {
                             <form onSubmit={handleSubmit} className="modal-form">
                               <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px'}}>
                                 <div className="form-group">
-                                    <label>Kode Lab</label>
+                                    <label>Kode Sampel</label>
                                     <input
                                     type="text"
-                                    value={form.Kode_Lab}
-                                    onChange={(e) => setForm({ ...form, Kode_Lab: e.target.value })}
+                                    value={form.Kode_Sampel}
+                                    onChange={(e) => setForm({ ...form, Kode_Sampel: e.target.value })}
                                     required
                                     />
                                 </div>

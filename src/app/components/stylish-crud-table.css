@@ -96,6 +96,63 @@
   overflow: hidden;
 }
 
+/* Date input styling for transparent placeholder */
+input[type="date"]::-webkit-datetime-edit-text,
+input[type="date"]::-webkit-datetime-edit-month-field,
+input[type="date"]::-webkit-datetime-edit-day-field,
+input[type="date"]::-webkit-datetime-edit-year-field {
+  color: rgba(0, 0, 0, 0.3);
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0.6;
+  transition: all 0.3s ease;
+}
+
+input[type="date"]:focus::-webkit-datetime-edit-text,
+input[type="date"]:focus::-webkit-datetime-edit-month-field,
+input[type="date"]:focus::-webkit-datetime-edit-day-field,
+input[type="date"]:focus::-webkit-datetime-edit-year-field {
+  color: rgba(0, 0, 0, 0.7);
+}
+
+input[type="date"]:hover::-webkit-calendar-picker-indicator,
+input[type="date"]:focus::-webkit-calendar-picker-indicator {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+/* Date input navigation-style animation */
+input[type="date"] {
+  color-scheme: light;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateY(0);
+  position: relative;
+}
+
+input[type="date"]:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-color: #007bff;
+  background-color: #f8f9ff;
+}
+
+input[type="date"]:focus {
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1), 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-color: #007bff;
+  background-color: #ffffff;
+}
+
+input[type="date"]:active {
+  transform: translateY(0);
+  transition: all 0.1s ease;
+}
+
+input[type="date"]:invalid {
+  color: rgba(0, 0, 0, 0.3);
+}
+
 .stylish-table {
   width: 100%;
   border-collapse: collapse;
