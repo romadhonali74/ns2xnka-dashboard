@@ -1,12 +1,13 @@
 "use client";
 
-import { Home, TrendingUp, AlertTriangle, LogOut, Calendar, ShieldCheck, ChevronDown, ChevronRight, FileText, BarChart3, Settings, Users, ChevronLeft, Menu, Ship, Container, PackageSearch } from "lucide-react";
+import { Home, TrendingUp, AlertTriangle, LogOut, Calendar, ShieldCheck, ChevronDown, ChevronRight, FileText, BarChart3, Settings, Users, ChevronLeft, Menu, Ship, Container, PackageSearch, FolderKanban } from "lucide-react";
 import { Button } from "./ui/button";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "../lib/supabase"; // Impor supabase
 import { useEffect, useState } from "react";
 import { useAuth } from "../providers/auth_provider";
 import LogoutLoader from "./logout-loader";
+
 
 interface SidebarProps {
   onTabChange?: (tab: string) => void;
@@ -78,6 +79,7 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
     if (pathname === "/quality_control/pra_produksi") return "qc-pra_produksi";
     if (pathname === "/quality_control/produksi") return "qc-produksi";
     if (pathname === "/quality_control/kapal") return "qc-kapal";
+    if (pathname === "/quality_control/product_details") return "qc-product_details";
     if (pathname.startsWith("/realisasi_pengapalan")) return "daily-operations";
     return "home";
   };
@@ -147,6 +149,8 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
       router.push("/quality_control/produksi");
     } else if (tab === "qc-kapal") {
       router.push("/quality_control/kapal");
+      } else if (tab === "qc-product_details") {
+      router.push("/quality_control/product_details");
     } else if (tab === "logout") {
       handleLogout();
     }
@@ -166,6 +170,7 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
     { id: "qc-pra_produksi", label: "ETO to EFO", icon: PackageSearch },
     { id: "qc-produksi", label: "Produksi", icon: Container },
     { id: "qc-kapal", label: "Kapal/Tkg", icon: Ship },
+    { id: "qc-product_details", label: "Product Details", icon: FolderKanban },
   ];
 
   // Filter menu berdasarkan role dan bureu
