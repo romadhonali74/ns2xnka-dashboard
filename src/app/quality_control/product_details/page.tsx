@@ -776,22 +776,22 @@ export default function ProductDetailsTable() {
                                       paddingRight: '40px'
                                     }}
                                     onFocus={(e) => {
-                                      e.target.style.borderColor = '#3b82f6';
-                                      e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
+                                      (e.target as HTMLSelectElement).style.borderColor = '#3b82f6';
+                                      (e.target as HTMLSelectElement).style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
                                     }}
                                     onBlur={(e) => {
-                                      e.target.style.borderColor = '#e1e5e9';
-                                      e.target.style.boxShadow = 'none';
+                                      (e.target as HTMLSelectElement).style.borderColor = '#e1e5e9';
+                                      (e.target as HTMLSelectElement).style.boxShadow = 'none';
                                     }}
                                     onMouseEnter={(e) => {
-                                      e.target.style.borderColor = '#9ca3af';
-                                      e.target.style.transform = 'translateY(-1px)';
+                                      (e.target as HTMLSelectElement).style.borderColor = '#9ca3af';
+                                      (e.target as HTMLSelectElement).style.transform = 'translateY(-1px)';
                                     }}
                                     onMouseLeave={(e) => {
                                       if (e.target !== document.activeElement) {
-                                        e.target.style.borderColor = '#e1e5e9';
+                                        (e.target as HTMLSelectElement).style.borderColor = '#e1e5e9';
                                       }
-                                      e.target.style.transform = 'translateY(0)';
+                                      (e.target as HTMLSelectElement).style.transform = 'translateY(0)';
                                     }}
                                     >
                                       <option value="">Select Status</option>
