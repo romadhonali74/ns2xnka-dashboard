@@ -321,12 +321,13 @@ export default function ProductSumTable() {
         <div className="crud-container">
             <div className="crud-header">
                     <h2>Product Summary</h2>
-                    {canAddData && (
+                    {/* Uncomment to enable Add Data button */}
+                    {/* {canAddData && (
                       <button className="btn-primary" onClick={() => setShowModal(true)} style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
                         <Plus size={16} />
                         Add Data
                       </button>
-                    )}
+                    )} */}
                 </div>
                 <div style={{marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
                   <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
@@ -441,7 +442,8 @@ export default function ProductSumTable() {
                                         <Edit size={14} />
                                         Edit
                                       </button>
-                                      <button 
+                                      {/* Uncomment to enable Delete button */}
+                                      {/* <button 
                                         onClick={() => handleDelete(user.id)}
                                         style={{
                                           background: '#dc3545',
@@ -458,7 +460,7 @@ export default function ProductSumTable() {
                                       >
                                         <Trash2 size={14} />
                                         Delete
-                                      </button>
+                                      </button> */}
                                     </div>
                                 </td>}
                               </tr>

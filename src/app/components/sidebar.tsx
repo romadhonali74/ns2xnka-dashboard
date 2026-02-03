@@ -74,6 +74,7 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
     if (pathname === "/") return "home";
     if (pathname === "/loading_ritase_rate") return "loading-rate";
     if (pathname === "/issues") return "issues";
+    if (pathname === "/mining_reports") return "mining-reports";
     if (pathname === "/quality_control") return "quality_control";
     if (pathname === "/quality_control/gcs") return "qc-gcs";
     if (pathname === "/quality_control/pra_produksi") return "qc-pra_produksi";
@@ -138,6 +139,8 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
       router.push("/issues");
     } else if (tab === "daily-operations") {
       router.push("/realisasi_pengapalan");
+    } else if (tab === "mining-reports") {
+      router.push("/mining_reports");
     } else if (tab === "quality_control") {
       setShowQCSubmenu(!showQCSubmenu);
       // router.push("/quality_control");
@@ -162,6 +165,7 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
     { id: "daily-operations", label: "Daily Operations", icon: Calendar },
     { id: "issues", label: "Significant Issues", icon: AlertTriangle },
     { id: "quality_control", label: "Quality Control", icon: ShieldCheck },
+    { id: "mining-reports", label: "Mining Reports", icon: BarChart3 },
     { id: "logout", label: "Log out", icon: LogOut },
   ];
 
