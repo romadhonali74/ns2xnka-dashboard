@@ -25,6 +25,15 @@ interface ManualReportData {
   created_at: string;
 }
 
+type PeriodType = 'Today' | 'Month-to-Date' | 'Year-to-Date' | 'This Month (Progress)' | 'This Year (Progress)';
+
+type FormDataType = Record<PeriodType, {
+  mka_plan: string;
+  mka_actual: string;
+  stn_plan: string;
+  stn_actual: string;
+}>;
+
 export default function MiningReportsTable() {
   const [reportData, setReportData] = useState<ManualReportData[]>([]);
   const [loading, setLoading] = useState(false);
@@ -33,9 +42,9 @@ export default function MiningReportsTable() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [currentPage, setCurrentPage] = useState(0);
-  const [currentPeriodType, setCurrentPeriodType] = useState('Today');
+  const [currentPeriodType, setCurrentPeriodType] = useState<PeriodType>('Today');
   const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0]);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormDataType>({
     'Today': { mka_plan: '', mka_actual: '', stn_plan: '', stn_actual: '' },
     'Month-to-Date': { mka_plan: '', mka_actual: '', stn_plan: '', stn_actual: '' },
     'Year-to-Date': { mka_plan: '', mka_actual: '', stn_plan: '', stn_actual: '' },
@@ -75,7 +84,7 @@ export default function MiningReportsTable() {
     setLoading(true);
 
     try {
-      const periods = ['Today', 'Month-to-Date', 'Year-to-Date', 'This Month (Progress)', 'This Year (Progress)'];
+      const periods: PeriodType[] = ['Today', 'Month-to-Date', 'Year-to-Date', 'This Month (Progress)', 'This Year (Progress)'];
       const filledPeriods = periods.filter(period => {
         const data = formData[period];
         return data && (data.mka_plan || data.mka_actual || data.stn_plan || data.stn_actual);
@@ -394,7 +403,7 @@ export default function MiningReportsTable() {
                 
                 <h4 style={{textAlign: 'center', marginBottom: '15px', color: '#333'}}>Periode</h4>
                 <div style={{display: 'flex', justifyContent: 'center', marginBottom: '20px', borderBottom: '1px solid #ddd', paddingBottom: '10px'}}>
-                  {['Today', 'Month-to-Date', 'Year-to-Date', 'This Month (Progress)', 'This Year (Progress)'].map((period, index) => (
+                  {(['Today', 'Month-to-Date', 'Year-to-Date', 'This Month (Progress)', 'This Year (Progress)'] as const).map((period, index) => (
                     <button
                       key={period}
                       type="button"
