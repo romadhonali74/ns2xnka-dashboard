@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "./providers/auth_provider";
+import { CacheProvider } from "./providers/cache_provider";
 import QCRedirectLoader from "./components/qc-redirect-loader";
 
 const geistSans = Geist({
@@ -30,7 +31,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AuthProvider>
-          <QCRedirectLoader>{children}</QCRedirectLoader>
+          <CacheProvider>
+            <QCRedirectLoader>{children}</QCRedirectLoader>
+          </CacheProvider>
         </AuthProvider>
       </body>
     </html>

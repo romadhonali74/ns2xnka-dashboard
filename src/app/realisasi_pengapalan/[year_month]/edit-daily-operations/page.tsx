@@ -16,6 +16,7 @@ import { ArrowLeft } from "lucide-react";
 import { format, parse } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { useAuth } from "@/app/providers/auth_provider";
+import { useCache } from "@/app/providers/cache_provider";
 
 interface DailyRealisasiPengapalanMetric {
   id: number;
@@ -181,9 +182,11 @@ export default function EditDailyOperationsPage() {
 
   const [isLoadingFetch, setIsLoadingFetch] = useState(true);
   const [isLoadingSave, setIsLoadingSave] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const { user } = useAuth();
+  const { getCache, setCacheData, hasValidCache } = useCache();
 
   useEffect(() => {
     const bureu = extractBureu(user);
@@ -191,6 +194,16 @@ export default function EditDailyOperationsPage() {
     setIsMining(bureu === "mining");
     setIsQc(bureu === "qc");
   }, [user]);
+
+  // Page loading control
+  useEffect(() => {
+    if (!isLoadingFetch) {
+      const timer = setTimeout(() => setPageLoading(false), 200);
+      return () => clearTimeout(timer);
+    } else {
+      setPageLoading(true);
+    }
+  }, [isLoadingFetch]);
 
   // Function to get vessel completed count and total realisasi from realisasi API
   const fetchRealisasiData = async (monthYear: string): Promise<{totalRealisasi: number, vesselCount: number}> => {
@@ -209,6 +222,20 @@ export default function EditDailyOperationsPage() {
 
   useEffect(() => {
     const fetchDailyData = async () => {
+      const cacheKey = `daily-ops-${dateParam}`;
+      
+      if (hasValidCache(cacheKey)) {
+        const cachedData = getCache(cacheKey);
+        setProduksiMining(cachedData.produksiMining);
+        setProduksiQc(cachedData.produksiQc);
+        setPenjualan(cachedData.penjualan);
+        setStockAwal(cachedData.stockAwal);
+        setKunjungan(cachedData.kunjungan);
+        setTotalRealisasi(cachedData.totalRealisasi);
+        setIsLoadingFetch(false);
+        return;
+      }
+      
       setIsLoadingFetch(true);
       setError(null);
       if (!dateParam) {
@@ -258,6 +285,16 @@ export default function EditDailyOperationsPage() {
         setProduksiQc(formatGroupedDecimal3((data.produksi_qc ?? 0)));
         setPenjualan(formatGroupedDecimal3((data.penjualan ?? 0)));
         setStockAwal(formatGroupedDecimal3((data.stock_awal ?? 0)));
+        
+        // Cache the data
+        setCacheData(cacheKey, {
+          produksiMining: formatGroupedDecimal3((data.produksi_mining ?? 0)),
+          produksiQc: formatGroupedDecimal3((data.produksi_qc ?? 0)),
+          penjualan: formatGroupedDecimal3((data.penjualan ?? 0)),
+          stockAwal: formatGroupedDecimal3((data.stock_awal ?? 0)),
+          kunjungan: String(realisasiData.vesselCount),
+          totalRealisasi: formatGroupedDecimal3(realisasiData.totalRealisasi)
+        }, 5);
       } catch (err) {
         setError(
           err instanceof Error
@@ -483,6 +520,7 @@ export default function EditDailyOperationsPage() {
     router.back();
   };
 
+
   if (isLoadingFetch) {
     return (
       <div
@@ -518,6 +556,19 @@ export default function EditDailyOperationsPage() {
       className="min-h-screen flex items-center justify-center"
       style={{ backgroundColor: "#f1f2f7" }}
     >
+      {pageLoading && (
+        <div className="absolute inset-0 flex items-start justify-center pt-16 z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 border border-gray-300">
+            <div className="text-center">
+              <div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mt-3"></div>
+                <br></br>
+                <p className="text-gray-700 font-medium">Memuat Data ...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="w-full max-w-md">
         <Card className="shadow-lg bg-white border-none">
           <CardHeader className="pb-1">

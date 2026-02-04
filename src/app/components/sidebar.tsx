@@ -29,8 +29,6 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
     try {
       const root: any = user ?? null;
       
-
-      
       const candidates = [
         root?.app_metadata?.bureu,
         root?.user_metadata?.bureu,
@@ -62,11 +60,6 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
       setRole(null);
       setShowLoadingRate(true);
     }
-    
-    // Debug logs
-    console.log('User email:', user?.email);
-    console.log('Current role:', role);
-    console.log('Current bureu:', bureu);
   }, [user]);
 
   // Fungsi untuk menentukan tab aktif berdasarkan pathname saat ini

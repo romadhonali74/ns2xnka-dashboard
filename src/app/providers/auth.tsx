@@ -12,6 +12,8 @@ export type UserMetadata = {
 export type AppUser = User & {
   role?: string; // Untuk backward compatibility
   user_metadata?: UserMetadata;
+  app_role?: string; // Field dari database users table
+  user_role?: string; // Field dari database users table
 };
 
 export type AuthContextType = {

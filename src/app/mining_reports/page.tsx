@@ -8,6 +8,7 @@ import "../components/stylish-crud-table.css";
 import Sidebar from "../components/sidebar";
 import { Plus, Edit, Trash2, Search, Download } from "lucide-react";
 import { useAuth } from "../providers/auth_provider";
+import { useMiningPermission } from "../hooks/useMiningPermission";
 
 interface NiProductionData {
   id: number;
@@ -25,6 +26,7 @@ interface NiProductionData {
 }
 
 export default function MiningReportsTable() {
+  const { canAddData, loading: permissionLoading } = useMiningPermission();
   const [productionData, setProductionData] = useState<NiProductionData[]>([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -103,8 +105,10 @@ export default function MiningReportsTable() {
             } else if (item.company_id === 2) { // PT Semarak Tambang Nusantara
               todayData.stn_plan = item.plan_wmt || 0;
               todayData.stn_actual = item.actual_wmt || 0;
+            } else if (item.company_id === 3) { // Site Moronopo
+              todayData.moronopo_plan = item.plan_wmt || 0;
+              todayData.moronopo_actual = item.actual_wmt || 0;
             }
-            // Skip company_id === 3 (Site Moronopo) as it will be calculated
           });
         }
       }
@@ -138,8 +142,10 @@ export default function MiningReportsTable() {
           } else if (item.company_id === 2) {
             monthToDateData.stn_plan += parseFloat(item.plan_wmt) || 0;
             monthToDateData.stn_actual += parseFloat(item.actual_wmt) || 0;
+          } else if (item.company_id === 3) {
+            monthToDateData.moronopo_plan += parseFloat(item.plan_wmt) || 0;
+            monthToDateData.moronopo_actual += parseFloat(item.actual_wmt) || 0;
           }
-          // Skip company_id === 3 (Site Moronopo) as it will be calculated
         });
       }
       
@@ -159,8 +165,10 @@ export default function MiningReportsTable() {
           } else if (item.company_id === 2) {
             thisMonthProgressData.stn_plan += parseFloat(item.plan_wmt) || 0;
             thisMonthProgressData.stn_actual += parseFloat(item.actual_wmt) || 0;
+          } else if (item.company_id === 3) {
+            thisMonthProgressData.moronopo_plan += parseFloat(item.plan_wmt) || 0;
+            thisMonthProgressData.moronopo_actual += parseFloat(item.actual_wmt) || 0;
           }
-          // Skip company_id === 3 (Site Moronopo) as it will be calculated
         });
       }
       
@@ -195,8 +203,10 @@ export default function MiningReportsTable() {
           } else if (item.company_id === 2) {
             yearToDateData.stn_plan += parseFloat(item.plan_wmt) || 0;
             yearToDateData.stn_actual += parseFloat(item.actual_wmt) || 0;
+          } else if (item.company_id === 3) {
+            yearToDateData.moronopo_plan += parseFloat(item.plan_wmt) || 0;
+            yearToDateData.moronopo_actual += parseFloat(item.actual_wmt) || 0;
           }
-          // Skip company_id === 3 (Site Moronopo) as it will be calculated
         });
         console.log('YTD Calculated:', yearToDateData); // Debug log
       }
@@ -219,8 +229,10 @@ export default function MiningReportsTable() {
           } else if (item.company_id === 2) {
             thisYearProgressData.stn_plan += parseFloat(item.plan_wmt) || 0;
             thisYearProgressData.stn_actual += parseFloat(item.actual_wmt) || 0;
+          } else if (item.company_id === 3) {
+            thisYearProgressData.moronopo_plan += parseFloat(item.plan_wmt) || 0;
+            thisYearProgressData.moronopo_actual += parseFloat(item.actual_wmt) || 0;
           }
-          // Skip company_id === 3 (Site Moronopo) as it will be calculated
         });
       }
     } catch (error) {
@@ -228,11 +240,11 @@ export default function MiningReportsTable() {
     }
 
     const defaultRows = [
-      { period_type: 'Today', ...todayData, moronopo_plan: todayData.mka_plan + todayData.stn_plan, moronopo_actual: todayData.mka_actual + todayData.stn_actual },
-      { period_type: 'Month-to-Date', ...monthToDateData, moronopo_plan: monthToDateData.mka_plan + monthToDateData.stn_plan, moronopo_actual: monthToDateData.mka_actual + monthToDateData.stn_actual },
-      { period_type: 'Year-to-Date', ...yearToDateData, moronopo_plan: yearToDateData.mka_plan + yearToDateData.stn_plan, moronopo_actual: yearToDateData.mka_actual + yearToDateData.stn_actual },
-      { period_type: 'This Month (Progress)', ...thisMonthProgressData, moronopo_plan: thisMonthProgressData.mka_plan + thisMonthProgressData.stn_plan, moronopo_actual: thisMonthProgressData.mka_actual + thisMonthProgressData.stn_actual },
-      { period_type: 'This Year (Progress)', ...thisYearProgressData, moronopo_plan: thisYearProgressData.mka_plan + thisYearProgressData.stn_plan, moronopo_actual: thisYearProgressData.mka_actual + thisYearProgressData.stn_actual }
+      { period_type: 'Today', ...todayData },
+      { period_type: 'Month-to-Date', ...monthToDateData },
+      { period_type: 'Year-to-Date', ...yearToDateData },
+      { period_type: 'This Month (Progress)', ...thisMonthProgressData },
+      { period_type: 'This Year (Progress)', ...thisYearProgressData }
     ];
 
     const processedRows = defaultRows.map(row => ({
@@ -300,7 +312,7 @@ export default function MiningReportsTable() {
         });
       }
       
-      // Submit form3 (Moronopo) - calculated from form1 + form2
+      // Submit form3 (Moronopo) - calculated from form1 + form2 (tetap otomatis)
       if (form1.plan_wmt || form1.actual_wmt || form2.plan_wmt || form2.actual_wmt) {
         submissions.push({
           company_id: 3,
@@ -437,30 +449,55 @@ export default function MiningReportsTable() {
   };
 
   const exportToExcel = () => {
-    const headers = [
-      'Period',
-      'MKA Plan (wmt)', 'MKA Actual (wmt)', 'MKA %',
-      'STN Plan (wmt)', 'STN Actual (wmt)', 'STN %',
-      'Moronopo Plan (wmt)', 'Moronopo Actual (wmt)', 'Moronopo %'
-    ];
     const data = productionData.map(item => [
       item.period_type,
-      formatNumber(item.mka_plan), formatNumber(item.mka_actual), `${item.mka_percentage}%`,
-      formatNumber(item.stn_plan), formatNumber(item.stn_actual), `${item.stn_percentage}%`,
-      formatNumber(item.moronopo_plan), formatNumber(item.moronopo_actual), `${item.moronopo_percentage}%`
+      formatNumber(item.mka_plan), formatNumber(item.mka_actual), `${item.mka_percentage.toFixed(2)}%`,
+      formatNumber(item.stn_plan), formatNumber(item.stn_actual), `${item.stn_percentage.toFixed(2)}%`,
+      formatNumber(item.mka_plan + item.stn_plan), formatNumber(item.mka_actual + item.stn_actual), 
+      `${(item.mka_plan + item.stn_plan) > 0 ? (((item.mka_actual + item.stn_actual) / (item.mka_plan + item.stn_plan)) * 100).toFixed(2) : '0.00'}%`
     ]);
     
     let htmlContent = `
-      <table border="1" style="border-collapse: collapse; width: 100%;">
+      <table border="1" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 14px;">
         <thead>
-          <tr style="background-color: #f2f2f2; font-weight: bold;">
-            ${headers.map(header => `<th style="padding: 8px; text-align: center;">${header}</th>`).join('')}
+          <tr style="background-color: #ffffff; font-weight: bold;">
+            <th rowspan="2" style="border: 1px solid black; padding: 8px; text-align: center; font-weight: bold;">Ni Production</th>
+            <th colspan="3" style="border: 1px solid black; padding: 8px; text-align: center; font-weight: bold;">PT Manado Karya Anugrah</th>
+            <th colspan="3" style="border: 1px solid black; padding: 8px; text-align: center; font-weight: bold;">PT Semarak Tambang Nusantara</th>
+            <th colspan="3" style="border: 1px solid black; padding: 8px; text-align: center; font-weight: bold;">Site Moronopo</th>
+          </tr>
+          <tr style="background-color: #ffffff; font-weight: bold;">
+            <th style="border: 1px solid black; padding: 8px; text-align: center; font-weight: bold;">Plan (wmt)</th>
+            <th style="border: 1px solid black; padding: 8px; text-align: center; font-weight: bold;">Actual (wmt)</th>
+            <th style="border: 1px solid black; padding: 8px; text-align: center; font-weight: bold;">%</th>
+            <th style="border: 1px solid black; padding: 8px; text-align: center; font-weight: bold;">Plan (wmt)</th>
+            <th style="border: 1px solid black; padding: 8px; text-align: center; font-weight: bold;">Actual (wmt)</th>
+            <th style="border: 1px solid black; padding: 8px; text-align: center; font-weight: bold;">%</th>
+            <th style="border: 1px solid black; padding: 8px; text-align: center; font-weight: bold;">Plan (wmt)</th>
+            <th style="border: 1px solid black; padding: 8px; text-align: center; font-weight: bold;">Actual (wmt)</th>
+            <th style="border: 1px solid black; padding: 8px; text-align: center; font-weight: bold;">%</th>
           </tr>
         </thead>
         <tbody>
-          ${data.map(row => 
-            `<tr>${row.map(cell => `<td style="padding: 8px; text-align: center;">${cell}</td>`).join('')}</tr>`
-          ).join('')}
+          ${data.map((row, index) => {
+            const item = productionData[index];
+            const mkaPct = getPercentageColor(item.mka_percentage);
+            const stnPct = getPercentageColor(item.stn_percentage);
+            const morPct = getPercentageColor((item.mka_plan + item.stn_plan) > 0 ? ((item.mka_actual + item.stn_actual) / (item.mka_plan + item.stn_plan)) * 100 : 0);
+            
+            return `<tr style="font-weight: bold;">
+              <td style="border: 1px solid black; padding: 8px; text-align: center; font-weight: bold;">${row[0]}</td>
+              <td style="border: 1px solid black; padding: 8px; text-align: center;">${row[1]}</td>
+              <td style="border: 1px solid black; padding: 8px; text-align: center;">${row[2]}</td>
+              <td style="border: 1px solid black; padding: 8px; text-align: center; color: ${mkaPct};">${row[3]}</td>
+              <td style="border: 1px solid black; padding: 8px; text-align: center;">${row[4]}</td>
+              <td style="border: 1px solid black; padding: 8px; text-align: center;">${row[5]}</td>
+              <td style="border: 1px solid black; padding: 8px; text-align: center; color: ${stnPct};">${row[6]}</td>
+              <td style="border: 1px solid black; padding: 8px; text-align: center;">${row[7]}</td>
+              <td style="border: 1px solid black; padding: 8px; text-align: center;">${row[8]}</td>
+              <td style="border: 1px solid black; padding: 8px; text-align: center; color: ${morPct};">${row[9]}</td>
+            </tr>`;
+          }).join('')}
         </tbody>
       </table>
     `;
@@ -469,7 +506,7 @@ export default function MiningReportsTable() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'NiProduction.xls';
+    a.download = `Mining_Reports_${selectedDate}.xls`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -500,14 +537,16 @@ export default function MiningReportsTable() {
                         <Download size={14} />
                         Export Data
                       </button>
-                      <button 
-                        className="btn-primary" 
-                        onClick={() => setShowModal(true)} 
-                        style={{display: 'flex', alignItems: 'center', gap: '6px'}}
-                      >
-                        <Plus size={16} />
-                        Add Data
-                      </button>
+                      {!permissionLoading && canAddData && (
+                        <button 
+                          className="btn-primary" 
+                          onClick={() => setShowModal(true)} 
+                          style={{display: 'flex', alignItems: 'center', gap: '6px'}}
+                        >
+                          <Plus size={16} />
+                          Add Data
+                        </button>
+                      )}
                     </div>
                 </div>
                 
@@ -720,7 +759,7 @@ export default function MiningReportsTable() {
                       <tbody>
                           {loading ? (
                           <tr>
-                              <td colSpan={10} className="loading">Loading...</td>
+                              <td colSpan={10} className="loading">Memuat Data...</td>
                               {/* <td colSpan={11} className="loading">Loading...</td> */}
                           </tr>
                           ) : productionData.length === 0 ? (

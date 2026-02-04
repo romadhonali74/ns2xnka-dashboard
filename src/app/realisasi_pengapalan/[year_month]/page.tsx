@@ -13,6 +13,7 @@ import { Edit, ArrowLeft } from "lucide-react";
 import { format, getDaysInMonth, parseISO, parse } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { useAuth } from "@/app/providers/auth_provider";
+import { useCache } from "@/app/providers/cache_provider";
 
 interface DailyRealisasiPengapalanMetric {
   id: number;
@@ -94,7 +95,11 @@ export default function RealisasiPengapalanDetailPage() {
   >([]);
   const [monthlyRealisasi, setMonthlyRealisasi] = useState<{totalRealisasi: number, vesselCount: number}>({totalRealisasi: 0, vesselCount: 0});
   const [isLoading, setIsLoading] = useState(true);
+  const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const { user } = useAuth();
+  const { getCache, setCacheData, hasValidCache } = useCache();
 
   // Function to fetch realisasi data from realisasi API
   const fetchRealisasiData = async (monthYear: string): Promise<{totalRealisasi: number, vesselCount: number}> => {
@@ -153,6 +158,16 @@ export default function RealisasiPengapalanDetailPage() {
 
     fetchDailyRealisasi();
   }, [monthParam]);
+
+  // Page loading control
+  useEffect(() => {
+    if (!isLoading) {
+      const timer = setTimeout(() => setPageLoading(false), 200);
+      return () => clearTimeout(timer);
+    } else {
+      setPageLoading(true);
+    }
+  }, [isLoading]);
 
   const { user } = useAuth();
 
@@ -289,21 +304,25 @@ export default function RealisasiPengapalanDetailPage() {
     locale: idLocale,
   });
 
-  if (isLoading) {
+  if (pageLoading) {
     return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ backgroundColor: "#f1f2f7" }}
-      >
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Memuat data operasional harian...</p>
+      <div className="min-h-screen" style={{ backgroundColor: "#f1f2f7" }}>
+        <div className="absolute inset-0 flex items-start justify-center pt-16 z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 border border-gray-300">
+            <div className="text-center">
+              <div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mt-3"></div>
+                <br></br>
+                <p className="text-gray-700 font-medium">Memuat Data ...</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
-  if (error) {
+if (error) {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
