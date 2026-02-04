@@ -169,8 +169,6 @@ export default function RealisasiPengapalanDetailPage() {
     }
   }, [isLoading]);
 
-  const { user } = useAuth();
-
   useEffect(() => {
     const bureu = extractBureu(user);
     setIsShipping(bureu === "shipping");
