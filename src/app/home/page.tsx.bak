@@ -236,9 +236,10 @@ export default function Dashboard() {
     
     let produksiMining = 0;
     try {
-      const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
-      const lastDay = new Date(year, month, 0).getDate();
-      const monthEnd = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+      const monthStart = new Date(year, month - 1, 1).toISOString().split('T')[0];
+      const today = new Date();
+      const isCurrentMonth = year === today.getFullYear() && month === (today.getMonth() + 1);
+      const monthEnd = isCurrentMonth ? today.toISOString().split('T')[0] : new Date(year, month, 0).toISOString().split('T')[0];
       const miningResponse = await fetch(`/api/mining_reports?startDate=${monthStart}&endDate=${monthEnd}`);
       if (miningResponse.ok) {
         const miningData = await miningResponse.json();
@@ -784,14 +785,9 @@ export default function Dashboard() {
           <div className="grid grid-cols-2 gap-6 mb-8">
             <Card className="border-0 shadow-sm bg-white">
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-[#273240]">
-                    Total Kapal Selesai
-                  </CardTitle>
-                  <span className="text-xs text-gray-500 font-medium">
-                    {totalsMode === 'yearTotals' ? `Data Tahunan ${filterYear}` : `${monthNames[filterMonth - 1]?.toUpperCase()} ${filterYear}`}
-                  </span>
-                </div>
+                <CardTitle className="text-[#273240]">
+                Total Kapal Selesai
+                </CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col items-center">
                 {totalsLoading ? (
@@ -836,6 +832,12 @@ export default function Dashboard() {
                   </div>
                 </div>
                 )}
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-[#0075cf] rounded-sm"></div>
+                  <span className="text-sm text-[#273240]">
+                    {totalsMode === 'yearTotals' ? String(filterYear) : `${monthNames[filterMonth - 1]?.toUpperCase()} ${String(filterYear)}`}
+                  </span>
+                </div>
               </CardContent>
             </Card>
 
@@ -846,9 +848,6 @@ export default function Dashboard() {
                     <CardTitle className="text-[#273240]">
                       Produksi dan Penjualan
                     </CardTitle>
-                    <span className="text-xs text-gray-500 font-medium">
-                      Data Tahun {filterYear}
-                    </span>
                   </div>
                 </CardHeader>
                 <CardContent className="flex flex-col items-center">
@@ -940,9 +939,6 @@ export default function Dashboard() {
               <CardTitle className="text-lg" style={{ color: "#0075cf" }}>
                 Kurva Realisasi vs Target
               </CardTitle>
-              <span className="text-xs text-gray-500 font-medium">
-                Data Tahun {filterYear}
-              </span>
             </CardHeader>
             <CardContent>
               <div className="w-full overflow-hidden">
