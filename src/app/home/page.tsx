@@ -102,6 +102,11 @@ export default function Dashboard() {
   });
   const [ytdYearTotals, setYtdYearTotals] = useState<{ plan: number; real: number }>({ plan: 0, real: 0 });
   const [totalsLoading, setTotalsLoading] = useState<boolean>(false);
+  const [realisasiLoading, setRealisasiLoading] = useState<boolean>(false);
+  const [targetLoading, setTargetLoading] = useState<boolean>(false);
+  const [produksiLoading, setProduksiLoading] = useState<boolean>(false);
+  const [penjualanLoading, setPenjualanLoading] = useState<boolean>(false);
+  const [kapalLoading, setKapalLoading] = useState<boolean>(false);
   const [curveLoading, setCurveLoading] = useState<boolean>(false);
   const [barLoading, setBarLoading] = useState<boolean>(false);
   const [ytdLoading, setYtdLoading] = useState<boolean>(false);
@@ -120,14 +125,14 @@ export default function Dashboard() {
   }, [user]);
 
   useEffect(() => {
-    const allLoadingComplete = !isLoadingData && !totalsLoading && !curveLoading && !barLoading && !ytdLoading;
+    const allLoadingComplete = !isLoadingData && !realisasiLoading && !targetLoading && !produksiLoading && !penjualanLoading && !kapalLoading && !curveLoading && !barLoading && !ytdLoading;
     if (allLoadingComplete) {
       const timer = setTimeout(() => setPageLoading(false), 200);
       return () => clearTimeout(timer);
     } else {
       setPageLoading(true);
     }
-  }, [isLoadingData, totalsLoading, curveLoading, barLoading, ytdLoading]);
+  }, [isLoadingData, realisasiLoading, targetLoading, produksiLoading, penjualanLoading, kapalLoading, curveLoading, barLoading, ytdLoading]);
 
   useEffect(() => {
     const fetchAllData = async () => {
@@ -209,9 +214,17 @@ export default function Dashboard() {
 
   const computeTotalsMonth = async (year: number, month: number) => {
     const ym = `${year}-${String(month).padStart(2, "0")}`;
-    const days = await fetchDailyMonth(ym);
+    
+    // Fetch Realisasi
+    setRealisasiLoading(true);
     const totalRitasePerKapal = await fetchMonthRitaseTotal(ym);
+    setRealisasiLoading(false);
+    
+    // Fetch Target
+    setTargetLoading(true);
+    const days = await fetchDailyMonth(ym);
     const monthTarget = days.find((d) => typeof d.target === "number")?.target ?? 0;
+    setTargetLoading(false);
     
     let stockAwal = 0;
     const prev = new Date(year, month - 1, 1);
@@ -234,25 +247,32 @@ export default function Dashboard() {
       stockAwal = 0;
     }
     
+    // Fetch Produksi
+    setProduksiLoading(true);
     let produksiMining = 0;
     try {
-      const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
-      const lastDay = new Date(year, month, 0).getDate();
-      const monthEnd = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-      const miningResponse = await fetch(`/api/mining_reports?startDate=${monthStart}&endDate=${monthEnd}`);
-      if (miningResponse.ok) {
-        const miningData = await miningResponse.json();
-        const moronopoData = miningData.filter((item: any) => item.company_id === 3);
-        produksiMining = moronopoData.reduce((sum: number, item: any) => sum + (parseFloat(item.actual_wmt) || 0), 0);
+      const summaryResponse = await fetch(`/api/mining_summary?year=${year}&month=${month}`);
+      if (summaryResponse.ok) {
+        const summaryData = await summaryResponse.json();
+        const moronopoData = summaryData.find((item: any) => item.company_id === 3);
+        produksiMining = moronopoData?.total_actual || 0;
       }
     } catch {
       produksiMining = 0;
     }
-    
     const produksiQc = days.reduce((s, r) => s + (r.produksi_qc ?? 0), 0);
     const produksi = produksiMining + produksiQc;
+    setProduksiLoading(false);
+    
+    // Fetch Penjualan
+    setPenjualanLoading(true);
     const penjualan = totalRitasePerKapal;
+    setPenjualanLoading(false);
+    
+    // Fetch Kapal
+    setKapalLoading(true);
     const completedVesselsCount = await fetchCompletedVesselsCount(ym);
+    setKapalLoading(false);
     const newTotals = { 
       totalRealisasi: totalRitasePerKapal, target: monthTarget, stockAwal, produksi, 
       produksiMining, produksiQc, penjualan, totalKunjungan: completedVesselsCount, totalRitasePerKapal 
@@ -263,6 +283,9 @@ export default function Dashboard() {
   const computeTotalsYear = async (year: number) => {
     let sumR = 0, sumT = 0, sumS = 0, sumPM = 0, sumPQ = 0, sumJ = 0, sumV = 0;
     
+    // Fetch Realisasi & Penjualan
+    setRealisasiLoading(true);
+    setPenjualanLoading(true);
     try {
       const res = await fetch(`/api/vessel-status-total?year=${year}`, { headers: { Accept: "application/json" } });
       if (res.ok) {
@@ -274,6 +297,26 @@ export default function Dashboard() {
       sumR = 0;
       sumJ = 0;
     }
+    setRealisasiLoading(false);
+    setPenjualanLoading(false);
+    
+    // Fetch Target
+    setTargetLoading(true);
+    for (let m = 1; m <= 12; m++) {
+      try {
+        const ym = `${year}-${String(m).padStart(2, "0")}`;
+        const days = await fetchDailyMonth(ym);
+        let tgt = 0;
+        for (const d of days) {
+          tgt = d.target ?? tgt;
+          sumPQ += (d.produksi_qc ?? 0);
+        }
+        sumT += tgt;
+      } catch {
+        // ignore per-bulan
+      }
+    }
+    setTargetLoading(false);
     
     try {
       const prevYear = year - 1;
@@ -295,37 +338,25 @@ export default function Dashboard() {
       sumS = 0;
     }
     
+    // Fetch Produksi
+    setProduksiLoading(true);
     try {
-      const yearStart = `${year}-01-01`;
-      const today = new Date();
-      const isCurrentYear = year === today.getFullYear();
-      const yearEnd = isCurrentYear ? today.toISOString().split('T')[0] : `${year}-12-31`;
-      const miningResponse = await fetch(`/api/mining_reports?startDate=${yearStart}&endDate=${yearEnd}`);
-      if (miningResponse.ok) {
-        const miningData = await miningResponse.json();
-        const moronopoData = miningData.filter((item: any) => item.company_id === 3);
-        sumPM = moronopoData.reduce((sum: number, item: any) => sum + (parseFloat(item.actual_wmt) || 0), 0);
+      const summaryResponse = await fetch(`/api/mining_summary?year=${year}`);
+      if (summaryResponse.ok) {
+        const summaryData = await summaryResponse.json();
+        const moronopoData = summaryData.filter((item: any) => item.company_id === 3);
+        sumPM = moronopoData.reduce((sum: number, item: any) => sum + (item.total_actual || 0), 0);
       }
     } catch {
       sumPM = 0;
     }
-    
-    for (let m = 1; m <= 12; m++) {
-      try {
-        const ym = `${year}-${String(m).padStart(2, "0")}`;
-        const days = await fetchDailyMonth(ym);
-        let tgt = 0;
-        for (const d of days) {
-          tgt = d.target ?? tgt;
-          sumPQ += (d.produksi_qc ?? 0);
-        }
-        sumT += tgt;
-      } catch {
-        // ignore per-bulan
-      }
-    }
     const sumP = sumPM + sumPQ;
+    setProduksiLoading(false);
+    
+    // Fetch Kapal
+    setKapalLoading(true);
     const yearCompletedCount = await fetchCompletedVesselsCountForYear(year);
+    setKapalLoading(false);
     setSelectedTotals({ 
       totalRealisasi: sumR, target: sumT, stockAwal: sumS, produksi: sumP, 
       produksiMining: sumPM, produksiQc: sumPQ, penjualan: sumJ, 
@@ -348,31 +379,28 @@ export default function Dashboard() {
     }
     
     try {
-      const yearStart = `${year}-01-01`;
-      const today = new Date();
-      const isCurrentYear = year === today.getFullYear();
-      const yearEnd = isCurrentYear ? today.toISOString().split('T')[0] : `${year}-12-31`;
-      const miningResponse = await fetch(`/api/mining_reports?startDate=${yearStart}&endDate=${yearEnd}`);
-      if (miningResponse.ok) {
-        const miningData = await miningResponse.json();
-        const moronopoData = miningData.filter((item: any) => item.company_id === 3);
-        sumPM = moronopoData.reduce((sum: number, item: any) => sum + (parseFloat(item.actual_wmt) || 0), 0);
+      const summaryResponse = await fetch(`/api/mining_summary?year=${year}`);
+      if (summaryResponse.ok) {
+        const summaryData = await summaryResponse.json();
+        const moronopoData = summaryData.filter((item: any) => item.company_id === 3);
+        sumPM = moronopoData.reduce((sum: number, item: any) => sum + (item.total_actual || 0), 0);
       }
     } catch {
       sumPM = 0;
     }
     
-    for (let m = 1; m <= 12; m++) {
-      try {
-        const ym = `${year}-${String(m).padStart(2, '0')}`;
-        const days = await fetchDailyMonth(ym);
-        for (const d of days) {
-          sumPQ += (d.produksi_qc ?? 0);
-        }
-      } catch {
-        // ignore
-      }
-    }
+    // COMMENTED: Produksi QC calculation (not used in bar chart, uncomment if needed)
+    // for (let m = 1; m <= 12; m++) {
+    //   try {
+    //     const ym = `${year}-${String(m).padStart(2, '0')}`;
+    //     const days = await fetchDailyMonth(ym);
+    //     for (const d of days) {
+    //       sumPQ += (d.produksi_qc ?? 0);
+    //     }
+    //   } catch {
+    //     // ignore
+    //   }
+    // }
     
     let stockAwal = 0;
     try {
@@ -413,6 +441,11 @@ export default function Dashboard() {
         }
         
         setTotalsLoading(true);
+        setRealisasiLoading(true);
+        setTargetLoading(true);
+        setProduksiLoading(true);
+        setPenjualanLoading(true);
+        setKapalLoading(true);
         setCurveLoading(true);
         setBarLoading(true);
         setYtdLoading(true);
@@ -446,6 +479,7 @@ export default function Dashboard() {
             }
           }
           setCurveData({ labels, cumRealisasi: monthlyTotals, cumTarget: monthlyTargets });
+          setCurveLoading(false);
         })());
         promises.push((async () => {
           let sumS = 0, sumPM = 0, sumPQ = 0, sumJ = 0;
@@ -458,19 +492,16 @@ export default function Dashboard() {
           } catch { sumJ = 0; }
           
           try {
-            const yearStart = `${filterYear}-01-01`;
-            const today = new Date();
-            const isCurrentYear = filterYear === today.getFullYear();
-            const yearEnd = isCurrentYear ? today.toISOString().split('T')[0] : `${filterYear}-12-31`;
-            const miningResponse = await fetch(`/api/mining_reports?startDate=${yearStart}&endDate=${yearEnd}`);
-            if (miningResponse.ok) {
-              const miningData = await miningResponse.json();
-              const moronopoData = miningData.filter((item: any) => item.company_id === 3);
-              sumPM = moronopoData.reduce((sum: number, item: any) => sum + (parseFloat(item.actual_wmt) || 0), 0);
+            const summaryResponse = await fetch(`/api/mining_summary?year=${filterYear}`);
+            if (summaryResponse.ok) {
+              const summaryData = await summaryResponse.json();
+              const moronopoData = summaryData.filter((item: any) => item.company_id === 3);
+              sumPM = moronopoData.reduce((sum: number, item: any) => sum + (item.total_actual || 0), 0);
             }
           } catch { sumPM = 0; }
           
           setBarTotals({ stockAwal: sumS, produksiMining: sumPM, produksiQc: sumPQ, penjualan: sumJ });
+          setBarLoading(false);
         })());
         promises.push((async () => {
           let plan = 0, real = 0;
@@ -494,6 +525,7 @@ export default function Dashboard() {
             } catch { }
           }
           setYtdYearTotals({ plan, real });
+          setYtdLoading(false);
         })());
         
         await Promise.all(promises);
@@ -501,16 +533,14 @@ export default function Dashboard() {
       } catch (e) {
       } finally {
         setTotalsLoading(false);
-        setCurveLoading(false);
-        setBarLoading(false);
-        setYtdLoading(false);
+        // Individual loading states are now set in their respective promises
       }
     })();
   }, [filterYear, filterMonth, totalsMode]);
 
   // Cache data after state updates
   useEffect(() => {
-    if (!totalsLoading && !curveLoading && !barLoading && !ytdLoading) {
+    if (!totalsLoading && !realisasiLoading && !targetLoading && !produksiLoading && !penjualanLoading && !kapalLoading && !curveLoading && !barLoading && !ytdLoading) {
       const cacheKey = `dashboard-${filterYear}-${filterMonth}-${totalsMode}`;
       setCacheData(cacheKey, {
         selectedTotals,
@@ -519,7 +549,7 @@ export default function Dashboard() {
         ytdYearTotals
       }, 5);
     }
-  }, [selectedTotals, curveData, barTotals, ytdYearTotals, totalsLoading, curveLoading, barLoading, ytdLoading, filterYear, filterMonth, totalsMode]);
+  }, [selectedTotals, curveData, barTotals, ytdYearTotals, totalsLoading, realisasiLoading, targetLoading, produksiLoading, penjualanLoading, kapalLoading, curveLoading, barLoading, ytdLoading, filterYear, filterMonth, totalsMode]);
 
   const handleTabChange = (tab: string) => {
     // Tab change handler
@@ -666,11 +696,21 @@ export default function Dashboard() {
             stroke-dasharray: 1000 0;
           }
         }
+        @keyframes slideInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
       `}</style>
       <div className="min-h-screen bg-[#f1f2f7] flex">
         <Sidebar onTabChange={handleTabChange} />
         <div className="flex-1 p-6 relative">
-          {pageLoading && (
+          {/* {pageLoading && (
             <div className="absolute inset-0 flex items-start justify-center pt-16 z-50">
               <div className="bg-white rounded-lg shadow-xl p-6 border border-gray-300">
                 <div className="text-center">
@@ -678,12 +718,11 @@ export default function Dashboard() {
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mt-3"></div>
                     <br></br>
                     <p className="text-gray-700 font-medium">Memuat Data ...</p>                    
-                    {/* <p className="text-gray-500 text-sm">Mohon tunggu sebentar</p> */}
                   </div>                  
                 </div>
               </div>
             </div>
-          )}
+          )} */}
           <div className="flex justify-between items-center mb-6">
             <div>
               <h1 className="text-2xl font-semibold text-[#0075cf] mb-2">
@@ -755,30 +794,39 @@ export default function Dashboard() {
           </div>
 
           <div className="grid grid-cols-5 gap-4 mb-8">
-            {totalsLoading ? (
-              Array.from({ length: 6 }).map((_, i) => (
-                <Card key={i} className="border-0 shadow-sm bg-gray-200 animate-pulse">
+            {metrics.map((metric, index) => {
+              const isLoading = 
+                (metric.title === 'Total Realisasi' && realisasiLoading) ||
+                (metric.title === 'Target' && targetLoading) ||
+                (metric.title === 'Produksi' && produksiLoading) ||
+                (metric.title === 'Penjualan' && penjualanLoading) ||
+                (metric.title === 'Total Completed Kapal' && kapalLoading);
+              
+              return isLoading ? (
+                <Card key={index} className="border-0 shadow-sm bg-gray-200 animate-pulse">
                   <CardContent className="p-4 h-16" />
                 </Card>
-              ))
-            ) : (
-              metrics.map((metric, index) => (
-              <Card
-                key={index}
-                className="border-0 shadow-sm"
-                style={{ backgroundColor: metric.color }}
-              >
-                <CardContent className="p-4">
-                  <h3 className="text-sm font-medium text-[#273240] mb-2">
-                    {metric.title}
-                  </h3>
-                  <p className="text-sm font-semibold text-[#273240]">
-                    {metric.value}
-                  </p>
-                </CardContent>
-              </Card>
-              ))
-            )}
+              ) : (
+                <Card
+                  key={index}
+                  className="border-0 shadow-sm"
+                  style={{ 
+                    backgroundColor: metric.color,
+                    animation: 'slideInUp 0.5s ease-out both',
+                    animationDelay: `${index * 0.1}s`
+                  }}
+                >
+                  <CardContent className="p-4">
+                    <h3 className="text-sm font-medium text-[#273240] mb-2">
+                      {metric.title}
+                    </h3>
+                    <p className="text-sm font-semibold text-[#273240]">
+                      {metric.value}
+                    </p>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
 
           <div className="grid grid-cols-2 gap-6 mb-8">
@@ -794,7 +842,7 @@ export default function Dashboard() {
                 </div>
               </CardHeader>
               <CardContent className="flex flex-col items-center">
-                {totalsLoading ? (
+                {kapalLoading ? (
                   <div className="w-48 h-48 bg-gray-100 animate-pulse mb-4" />
                 ) : (
                 <div className="relative w-48 h-48 mb-4">
@@ -824,7 +872,7 @@ export default function Dashboard() {
                         }
                       strokeLinecap="round"
                       style={{
-                        animation: !totalsLoading ? 'drawCircle 1.5s ease-out 0.5s both' : 'none',
+                        animation: !kapalLoading ? 'drawCircle 1.5s ease-out 0.5s both' : 'none',
                         '--final-offset': `${251.2 - (parseFloat(totalKunjunganPercentage) / 100) * 251.2}`
                       } as any}
                     />

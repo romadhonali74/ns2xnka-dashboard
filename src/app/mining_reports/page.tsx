@@ -92,20 +92,25 @@ export default function MiningReportsTable() {
     let thisMonthProgressData = { mka_plan: 0, mka_actual: 0, stn_plan: 0, stn_actual: 0, moronopo_plan: 0, moronopo_actual: 0 };
     let thisYearProgressData = { mka_plan: 0, mka_actual: 0, stn_plan: 0, stn_actual: 0, moronopo_plan: 0, moronopo_actual: 0 };
     
+    const currentDate = new Date(selectedDate);
+    const selectedYear = currentDate.getFullYear();
+    const selectedMonth = currentDate.getMonth() + 1;
+    
     try {
+      // Fetch Today data from original API
       const response = await fetch(`/api/mining_reports?date=${selectedDate}`);
       if (response.ok) {
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
           const data = await response.json();
           data.forEach((item: any) => {
-            if (item.company_id === 1) { // PT Manado Karya Anugrah
+            if (item.company_id === 1) {
               todayData.mka_plan = item.plan_wmt || 0;
               todayData.mka_actual = item.actual_wmt || 0;
-            } else if (item.company_id === 2) { // PT Semarak Tambang Nusantara
+            } else if (item.company_id === 2) {
               todayData.stn_plan = item.plan_wmt || 0;
               todayData.stn_actual = item.actual_wmt || 0;
-            } else if (item.company_id === 3) { // Site Moronopo
+            } else if (item.company_id === 3) {
               todayData.moronopo_plan = item.plan_wmt || 0;
               todayData.moronopo_actual = item.actual_wmt || 0;
             }
@@ -116,127 +121,70 @@ export default function MiningReportsTable() {
       console.error('Error fetching mining reports:', error);
     }
 
-    // Calculate Month-to-Date and Year-to-Date from database
-    const currentDate = new Date(selectedDate);
-    const selectedYear = currentDate.getFullYear();
-    const monthStart = new Date(selectedYear, currentDate.getMonth(), 1).toISOString().split('T')[0];
-    const monthEnd = new Date(selectedYear, currentDate.getMonth() + 1, 0).toISOString().split('T')[0];
-    const yearStart = new Date(selectedYear, 0, 1).toISOString().split('T')[0];
-    
-    console.log(`Selected Date: ${selectedDate}, Selected Year: ${selectedYear}, Year Start: ${yearStart}`); // Debug log
-    
     try {
-      // Fetch Month-to-Date data (only current month)
-      const mtdResponse = await fetch(`/api/mining_reports?startDate=${monthStart}&endDate=${selectedDate}`);
+      // Fetch Month-to-Date from summary view
+      const mtdResponse = await fetch(`/api/mining_summary?year=${selectedYear}&month=${selectedMonth}`);
       if (mtdResponse.ok) {
         const mtdData = await mtdResponse.json();
-        // Filter to ensure only current month data
-        const currentMonthData = mtdData.filter((item: any) => {
-          const itemDate = new Date(item.log_date);
-          return itemDate.getMonth() === currentDate.getMonth() && itemDate.getFullYear() === currentDate.getFullYear();
-        });
-        currentMonthData.forEach((item: any) => {
+        console.log('MTD Data:', mtdData); // Debug
+        mtdData.forEach((item: any) => {
           if (item.company_id === 1) {
-            monthToDateData.mka_plan += parseFloat(item.plan_wmt) || 0;
-            monthToDateData.mka_actual += parseFloat(item.actual_wmt) || 0;
+            monthToDateData.mka_plan = item.total_plan || 0;
+            monthToDateData.mka_actual = item.total_actual || 0;
           } else if (item.company_id === 2) {
-            monthToDateData.stn_plan += parseFloat(item.plan_wmt) || 0;
-            monthToDateData.stn_actual += parseFloat(item.actual_wmt) || 0;
+            monthToDateData.stn_plan = item.total_plan || 0;
+            monthToDateData.stn_actual = item.total_actual || 0;
           } else if (item.company_id === 3) {
-            monthToDateData.moronopo_plan += parseFloat(item.plan_wmt) || 0;
-            monthToDateData.moronopo_actual += parseFloat(item.actual_wmt) || 0;
+            monthToDateData.moronopo_plan = item.total_plan || 0;
+            monthToDateData.moronopo_actual = item.total_actual || 0;
           }
         });
       }
       
-      // Fetch This Month Progress data (entire current month)
-      const thisMonthResponse = await fetch(`/api/mining_reports?startDate=${monthStart}&endDate=${monthEnd}`);
-      if (thisMonthResponse.ok) {
-        const thisMonthData = await thisMonthResponse.json();
-        // Filter to ensure only current month data
-        const currentMonthProgressData = thisMonthData.filter((item: any) => {
-          const itemDate = new Date(item.log_date);
-          return itemDate.getMonth() === currentDate.getMonth() && itemDate.getFullYear() === currentDate.getFullYear();
-        });
-        currentMonthProgressData.forEach((item: any) => {
-          if (item.company_id === 1) {
-            thisMonthProgressData.mka_plan += parseFloat(item.plan_wmt) || 0;
-            thisMonthProgressData.mka_actual += parseFloat(item.actual_wmt) || 0;
-          } else if (item.company_id === 2) {
-            thisMonthProgressData.stn_plan += parseFloat(item.plan_wmt) || 0;
-            thisMonthProgressData.stn_actual += parseFloat(item.actual_wmt) || 0;
-          } else if (item.company_id === 3) {
-            thisMonthProgressData.moronopo_plan += parseFloat(item.plan_wmt) || 0;
-            thisMonthProgressData.moronopo_actual += parseFloat(item.actual_wmt) || 0;
-          }
-        });
-      }
+      // This Month Progress = same as Month-to-Date for current month
+      thisMonthProgressData = { ...monthToDateData };
       
-      // Fetch Year-to-Date data
-      const ytdResponse = await fetch(`/api/mining_reports?startDate=${yearStart}&endDate=${selectedDate}`);
+      // Fetch Year-to-Date from summary view (sum all months up to current month)
+      const ytdResponse = await fetch(`/api/mining_summary?year=${selectedYear}`);
       if (ytdResponse.ok) {
         const ytdData = await ytdResponse.json();
-        console.log('YTD Raw Data:', ytdData); // Debug log
-        console.log('YTD Data Count:', ytdData.length); // Debug log
-        
-        // Group by company for debugging
-        const mkaData = ytdData.filter((item: any) => item.company_id === 1);
-        const stnData = ytdData.filter((item: any) => item.company_id === 2);
-        console.log('MKA Records:', mkaData.length, mkaData);
-        console.log('STN Records:', stnData.length, stnData);
-        
-        // Filter to ensure only selected year data
-        const filteredYtdData = ytdData.filter((item: any) => {
-          const itemDate = new Date(item.log_date);
-          const itemYear = itemDate.getFullYear();
-          console.log(`YTD Filter: item date=${item.log_date}, item year=${itemYear}, selected year=${selectedYear}, match=${itemYear === selectedYear}`);
-          return itemYear === selectedYear;
-        });
-        
-        console.log(`YTD Filtered Data Count: ${filteredYtdData.length} out of ${ytdData.length}`);
-        
-        filteredYtdData.forEach((item: any) => {
-          console.log(`YTD Item: company_id=${item.company_id}, plan=${item.plan_wmt}, actual=${item.actual_wmt}, date=${item.log_date}`); // Debug log
-          if (item.company_id === 1) {
-            yearToDateData.mka_plan += parseFloat(item.plan_wmt) || 0;
-            yearToDateData.mka_actual += parseFloat(item.actual_wmt) || 0;
-          } else if (item.company_id === 2) {
-            yearToDateData.stn_plan += parseFloat(item.plan_wmt) || 0;
-            yearToDateData.stn_actual += parseFloat(item.actual_wmt) || 0;
-          } else if (item.company_id === 3) {
-            yearToDateData.moronopo_plan += parseFloat(item.plan_wmt) || 0;
-            yearToDateData.moronopo_actual += parseFloat(item.actual_wmt) || 0;
+        console.log('YTD Data:', ytdData); // Debug
+        ytdData.forEach((item: any) => {
+          if (item.bulan <= selectedMonth) {
+            if (item.company_id === 1) {
+              yearToDateData.mka_plan += item.total_plan || 0;
+              yearToDateData.mka_actual += item.total_actual || 0;
+            } else if (item.company_id === 2) {
+              yearToDateData.stn_plan += item.total_plan || 0;
+              yearToDateData.stn_actual += item.total_actual || 0;
+            } else if (item.company_id === 3) {
+              yearToDateData.moronopo_plan += item.total_plan || 0;
+              yearToDateData.moronopo_actual += item.total_actual || 0;
+            }
           }
         });
-        console.log('YTD Calculated:', yearToDateData); // Debug log
       }
       
-      // Fetch This Year Progress data (entire selected year)
-      const yearEnd = `${selectedYear}-12-31`;
-      const thisYearResponse = await fetch(`/api/mining_reports?startDate=${yearStart}&endDate=${yearEnd}`);
+      // Fetch This Year Progress from summary view (all months)
+      const thisYearResponse = await fetch(`/api/mining_summary?year=${selectedYear}`);
       if (thisYearResponse.ok) {
         const thisYearData = await thisYearResponse.json();
-        console.log(`This Year Progress: startDate=${yearStart}, endDate=${yearEnd}`);
-        // Filter to ensure only selected year data
-        const currentYearProgressData = thisYearData.filter((item: any) => {
-          const itemDate = new Date(item.log_date);
-          return itemDate.getFullYear() === selectedYear;
-        });
-        currentYearProgressData.forEach((item: any) => {
+        console.log('This Year Data:', thisYearData); // Debug
+        thisYearData.forEach((item: any) => {
           if (item.company_id === 1) {
-            thisYearProgressData.mka_plan += parseFloat(item.plan_wmt) || 0;
-            thisYearProgressData.mka_actual += parseFloat(item.actual_wmt) || 0;
+            thisYearProgressData.mka_plan += item.total_plan || 0;
+            thisYearProgressData.mka_actual += item.total_actual || 0;
           } else if (item.company_id === 2) {
-            thisYearProgressData.stn_plan += parseFloat(item.plan_wmt) || 0;
-            thisYearProgressData.stn_actual += parseFloat(item.actual_wmt) || 0;
+            thisYearProgressData.stn_plan += item.total_plan || 0;
+            thisYearProgressData.stn_actual += item.total_actual || 0;
           } else if (item.company_id === 3) {
-            thisYearProgressData.moronopo_plan += parseFloat(item.plan_wmt) || 0;
-            thisYearProgressData.moronopo_actual += parseFloat(item.actual_wmt) || 0;
+            thisYearProgressData.moronopo_plan += item.total_plan || 0;
+            thisYearProgressData.moronopo_actual += item.total_actual || 0;
           }
         });
       }
     } catch (error) {
-      console.error('Error fetching MTD/YTD data:', error);
+      console.error('Error fetching mining summary:', error);
     }
 
     const defaultRows = [
@@ -558,164 +506,6 @@ export default function MiningReportsTable() {
                     onChange={async (e) => {
                       const newDate = e.target.value;
                       setSelectedDate(newDate);
-                      setLoading(true);
-                      
-                      let todayData = { mka_plan: 0, mka_actual: 0, stn_plan: 0, stn_actual: 0, moronopo_plan: 0, moronopo_actual: 0 };
-                      
-                      try {
-                        const response = await fetch(`/api/mining_reports?date=${newDate}`);
-                        if (response.ok) {
-                          const contentType = response.headers.get('content-type');
-                          if (contentType && contentType.includes('application/json')) {
-                            const data = await response.json();
-                            data.forEach((item: any) => {
-                              if (item.company_id === 1) {
-                                todayData.mka_plan = item.plan_wmt || 0;
-                                todayData.mka_actual = item.actual_wmt || 0;
-                              } else if (item.company_id === 2) {
-                                todayData.stn_plan = item.plan_wmt || 0;
-                                todayData.stn_actual = item.actual_wmt || 0;
-                              }
-                              // Skip company_id === 3 (Site Moronopo) as it will be calculated
-                            });
-                          }
-                        }
-                      } catch (error) {
-                        console.error('Error fetching mining reports:', error);
-                      }
-                      
-                      // Calculate Month-to-Date and Year-to-Date from database
-                      const currentDate = new Date(newDate);
-                      const selectedYear = currentDate.getFullYear();
-                      const monthStart = new Date(selectedYear, currentDate.getMonth(), 1).toISOString().split('T')[0];
-                      const monthEnd = new Date(selectedYear, currentDate.getMonth() + 1, 0).toISOString().split('T')[0];
-                      const yearStart = new Date(selectedYear, 0, 1).toISOString().split('T')[0];
-                      
-                      let monthToDateData = { mka_plan: 0, mka_actual: 0, stn_plan: 0, stn_actual: 0, moronopo_plan: 0, moronopo_actual: 0 };
-                      let yearToDateData = { mka_plan: 0, mka_actual: 0, stn_plan: 0, stn_actual: 0, moronopo_plan: 0, moronopo_actual: 0 };
-                      let thisMonthProgressData = { mka_plan: 0, mka_actual: 0, stn_plan: 0, stn_actual: 0, moronopo_plan: 0, moronopo_actual: 0 };
-                      let thisYearProgressData = { mka_plan: 0, mka_actual: 0, stn_plan: 0, stn_actual: 0, moronopo_plan: 0, moronopo_actual: 0 };
-                      
-                      try {
-                        // Fetch Month-to-Date data (only current month)
-                        const mtdResponse = await fetch(`/api/mining_reports?startDate=${monthStart}&endDate=${newDate}`);
-                        if (mtdResponse.ok) {
-                          const mtdData = await mtdResponse.json();
-                          // Filter to ensure only current month data
-                          const currentMonthData = mtdData.filter((item: any) => {
-                            const itemDate = new Date(item.log_date);
-                            return itemDate.getMonth() === currentDate.getMonth() && itemDate.getFullYear() === currentDate.getFullYear();
-                          });
-                          currentMonthData.forEach((item: any) => {
-                            if (item.company_id === 1) {
-                              monthToDateData.mka_plan += item.plan_wmt || 0;
-                              monthToDateData.mka_actual += item.actual_wmt || 0;
-                            } else if (item.company_id === 2) {
-                              monthToDateData.stn_plan += item.plan_wmt || 0;
-                              monthToDateData.stn_actual += item.actual_wmt || 0;
-                            } else if (item.company_id === 3) {
-                              monthToDateData.moronopo_plan += item.plan_wmt || 0;
-                              monthToDateData.moronopo_actual += item.actual_wmt || 0;
-                            }
-                          });
-                        }
-                        
-                        // Fetch This Month Progress data (entire current month)
-                        const thisMonthResponse = await fetch(`/api/mining_reports?startDate=${monthStart}&endDate=${monthEnd}`);
-                        if (thisMonthResponse.ok) {
-                          const thisMonthData = await thisMonthResponse.json();
-                          // Filter to ensure only current month data
-                          const currentMonthProgressData = thisMonthData.filter((item: any) => {
-                            const itemDate = new Date(item.log_date);
-                            return itemDate.getMonth() === currentDate.getMonth() && itemDate.getFullYear() === currentDate.getFullYear();
-                          });
-                          currentMonthProgressData.forEach((item: any) => {
-                            if (item.company_id === 1) {
-                              thisMonthProgressData.mka_plan += item.plan_wmt || 0;
-                              thisMonthProgressData.mka_actual += item.actual_wmt || 0;
-                            } else if (item.company_id === 2) {
-                              thisMonthProgressData.stn_plan += item.plan_wmt || 0;
-                              thisMonthProgressData.stn_actual += item.actual_wmt || 0;
-                            } else if (item.company_id === 3) {
-                              thisMonthProgressData.moronopo_plan += item.plan_wmt || 0;
-                              thisMonthProgressData.moronopo_actual += item.actual_wmt || 0;
-                            }
-                          });
-                        }
-                        
-                        // Fetch Year-to-Date data
-                        const ytdResponse = await fetch(`/api/mining_reports?startDate=${yearStart}&endDate=${newDate}`);
-                        if (ytdResponse.ok) {
-                          const ytdData = await ytdResponse.json();
-                          console.log('YTD Raw Data (Date Change):', ytdData); // Debug log
-                          
-                          // Filter to ensure only selected year data
-                          const filteredYtdData = ytdData.filter((item: any) => {
-                            const itemDate = new Date(item.log_date);
-                            return itemDate.getFullYear() === selectedYear;
-                          });
-                          
-                          filteredYtdData.forEach((item: any) => {
-                            console.log(`YTD Item (Date Change): company_id=${item.company_id}, plan=${item.plan_wmt}, actual=${item.actual_wmt}, date=${item.log_date}`); // Debug log
-                            if (item.company_id === 1) {
-                              yearToDateData.mka_plan += item.plan_wmt || 0;
-                              yearToDateData.mka_actual += item.actual_wmt || 0;
-                            } else if (item.company_id === 2) {
-                              yearToDateData.stn_plan += item.plan_wmt || 0;
-                              yearToDateData.stn_actual += item.actual_wmt || 0;
-                            } else if (item.company_id === 3) {
-                              yearToDateData.moronopo_plan += item.plan_wmt || 0;
-                              yearToDateData.moronopo_actual += item.actual_wmt || 0;
-                            }
-                          });
-                          console.log('YTD Calculated (Date Change):', yearToDateData); // Debug log
-                        }
-                        
-                        // Fetch This Year Progress data (entire selected year)
-                        const yearEnd = `${selectedYear}-12-31`;
-                        const thisYearResponse = await fetch(`/api/mining_reports?startDate=${yearStart}&endDate=${yearEnd}`);
-                        if (thisYearResponse.ok) {
-                          const thisYearData = await thisYearResponse.json();
-                          console.log(`This Year Progress (Date Change): startDate=${yearStart}, endDate=${yearEnd}`);
-                          // Filter to ensure only selected year data
-                          const currentYearProgressData = thisYearData.filter((item: any) => {
-                            const itemDate = new Date(item.log_date);
-                            return itemDate.getFullYear() === selectedYear;
-                          });
-                          currentYearProgressData.forEach((item: any) => {
-                            if (item.company_id === 1) {
-                              thisYearProgressData.mka_plan += item.plan_wmt || 0;
-                              thisYearProgressData.mka_actual += item.actual_wmt || 0;
-                            } else if (item.company_id === 2) {
-                              thisYearProgressData.stn_plan += item.plan_wmt || 0;
-                              thisYearProgressData.stn_actual += item.actual_wmt || 0;
-                            } else if (item.company_id === 3) {
-                              thisYearProgressData.moronopo_plan += item.plan_wmt || 0;
-                              thisYearProgressData.moronopo_actual += item.actual_wmt || 0;
-                            }
-                          });
-                        }
-                      } catch (error) {
-                        console.error('Error fetching MTD/YTD data:', error);
-                      }
-                      
-                      const defaultRows = [
-                        { period_type: 'Today', ...todayData, moronopo_plan: todayData.mka_plan + todayData.stn_plan, moronopo_actual: todayData.mka_actual + todayData.stn_actual },
-                        { period_type: 'Month-to-Date', ...monthToDateData, moronopo_plan: monthToDateData.mka_plan + monthToDateData.stn_plan, moronopo_actual: monthToDateData.mka_actual + monthToDateData.stn_actual },
-                        { period_type: 'Year-to-Date', ...yearToDateData, moronopo_plan: yearToDateData.mka_plan + yearToDateData.stn_plan, moronopo_actual: yearToDateData.mka_actual + yearToDateData.stn_actual },
-                        { period_type: 'This Month (Progress)', ...thisMonthProgressData, moronopo_plan: thisMonthProgressData.mka_plan + thisMonthProgressData.stn_plan, moronopo_actual: thisMonthProgressData.mka_actual + thisMonthProgressData.stn_actual },
-                        { period_type: 'This Year (Progress)', ...thisYearProgressData, moronopo_plan: thisYearProgressData.mka_plan + thisYearProgressData.stn_plan, moronopo_actual: thisYearProgressData.mka_actual + thisYearProgressData.stn_actual }
-                      ];
-                      
-                      const processedRows = defaultRows.map(row => ({
-                        ...row,
-                        mka_percentage: row.mka_plan > 0 ? (row.mka_actual / row.mka_plan) * 100 : 0,
-                        stn_percentage: row.stn_plan > 0 ? (row.stn_actual / row.stn_plan) * 100 : 0,
-                        moronopo_percentage: row.moronopo_plan > 0 ? (row.moronopo_actual / row.moronopo_plan) * 100 : 0
-                      }));
-                      
-                      setProductionData(processedRows.map((row, index) => ({ ...row, id: index + 1, created_at: new Date().toISOString() })));
-                      setLoading(false);
                     }}
                     style={{
                       padding: '6px 10px',

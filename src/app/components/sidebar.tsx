@@ -23,6 +23,7 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
   const [showQCSubmenu, setShowQCSubmenu] = useState<boolean>(false);
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState<boolean>(false);
 
 
   useEffect(() => {
@@ -88,7 +89,12 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
 
   const activeTab = getActiveTab();
 
+  const confirmLogout = () => {
+    setShowLogoutConfirm(true);
+  };
+
   const handleLogout = async () => {
+    setShowLogoutConfirm(false);
     setIsLoggingOut(true);
     
     try {
@@ -148,7 +154,7 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
       } else if (tab === "qc-product_details") {
       router.push("/quality_control/product_details");
     } else if (tab === "logout") {
-      handleLogout();
+      confirmLogout();
     }
   };
 
@@ -183,6 +189,28 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
   return (
     <>
       <LogoutLoader isLoading={isLoggingOut} />
+      
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">Apakah anda yakin ingin LogOut ?</h3>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors"
+              >
+                Tidak
+              </button>
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              >
+                Ya
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className={`${isCollapsed ? 'w-16' : 'w-64'} bg-white shadow-sm min-h-screen transition-all duration-300 relative`}>
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
