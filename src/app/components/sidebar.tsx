@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, TrendingUp, AlertTriangle, LogOut, Calendar, ShieldCheck, ChevronDown, ChevronRight, FileText, BarChart3, Settings, Users, ChevronLeft, Menu, Ship, Container, PackageSearch, FolderKanban } from "lucide-react";
+import { Home, TrendingUp, AlertTriangle, LogOut, Calendar, ShieldCheck, ChevronDown, ChevronRight, FileText, BarChart3, Settings, Users, ChevronLeft, Menu, Ship, Container, PackageSearch, FolderKanban, DollarSign, Receipt } from "lucide-react";
 import { Button } from "./ui/button";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "../lib/supabase"; // Impor supabase
@@ -21,6 +21,7 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
   const [role, setRole] = useState<string | null>(null);
   const [showLoadingRate, setShowLoadingRate] = useState<boolean>(false);
   const [showQCSubmenu, setShowQCSubmenu] = useState<boolean>(false);
+  const [showFinanceSubmenu, setShowFinanceSubmenu] = useState<boolean>(false);
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState<boolean>(false);
@@ -75,6 +76,9 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
     if (pathname === "/quality_control/produksi") return "qc-produksi";
     if (pathname === "/quality_control/kapal") return "qc-kapal";
     if (pathname === "/quality_control/product_details") return "qc-product_details";
+    if (pathname === "/finance") return "finance";
+    if (pathname === "/finance/cash_cost_report") return "finance-cash-cost";
+    if (pathname === "/finance/detail_report") return "finance-detail";
     if (pathname.startsWith("/realisasi_pengapalan")) return "daily-operations";
     return "home";
   };
@@ -82,6 +86,9 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
   useEffect(() => {
     if (pathname.startsWith("/quality_control")) {
       setShowQCSubmenu(true);
+    }
+    if (pathname.startsWith("/finance")) {
+      setShowFinanceSubmenu(true);
     }
   }, [pathname]);
 
@@ -142,7 +149,6 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
       router.push("/mining_reports");
     } else if (tab === "quality_control") {
       setShowQCSubmenu(!showQCSubmenu);
-      // router.push("/quality_control");
     } else if (tab === "qc-gcs") {
       router.push("/quality_control/gcs");
     } else if (tab === "qc-pra_produksi") {
@@ -153,6 +159,12 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
       router.push("/quality_control/kapal");
       } else if (tab === "qc-product_details") {
       router.push("/quality_control/product_details");
+    } else if (tab === "finance") {
+      setShowFinanceSubmenu(!showFinanceSubmenu);
+    } else if (tab === "finance-cash-cost") {
+      router.push("/finance/cash_cost_report");
+    } else if (tab === "finance-detail") {
+      router.push("/finance/detail_report");
     } else if (tab === "logout") {
       confirmLogout();
     }
@@ -165,6 +177,7 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
     { id: "issues", label: "Significant Issues", icon: AlertTriangle },
     { id: "quality_control", label: "Quality Control", icon: ShieldCheck },
     { id: "mining-reports", label: "Mining Reports", icon: BarChart3 },
+    { id: "finance", label: "Finance", icon: DollarSign },
     { id: "logout", label: "Log out", icon: LogOut },
   ];
 
@@ -174,6 +187,11 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
     { id: "qc-produksi", label: "Produksi", icon: Container },
     { id: "qc-kapal", label: "Kapal/Tkg", icon: Ship },
     { id: "qc-product_details", label: "Product Details", icon: FolderKanban },
+  ];
+
+  const financeSubMenuItems = [
+    { id: "finance-cash-cost", label: "Cash Cost Report", icon: DollarSign },
+    { id: "finance-detail", label: "Detail Report", icon: Receipt },
   ];
 
   // Filter menu berdasarkan role dan bureu
@@ -228,13 +246,14 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
             const isQCParent = item.id === "quality_control" && (activeTab === "quality_control" || activeTab.startsWith("qc-"));
+            const isFinanceParent = item.id === "finance" && (activeTab === "finance" || activeTab.startsWith("finance-"));
             
             return (
               <div key={item.id}>
                 <Button
-                  variant={isActive || isQCParent ? "default" : "ghost"}
+                  variant={isActive || isQCParent || isFinanceParent ? "default" : "ghost"}
                   className={`w-full ${isCollapsed ? 'justify-center p-2' : 'justify-start gap-3'} transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg hover:-translate-y-0.5 group relative overflow-hidden ${
-                    isActive || isQCParent
+                    isActive || isQCParent || isFinanceParent
                       ? "bg-[#0075cf] text-white hover:bg-[#114771] shadow-md"
                       : "text-[#273240] hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-[#0075cf] hover:border-blue-200"
                   }`}
@@ -250,6 +269,11 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
                           <ChevronDown className="w-4 h-4 ml-auto transition-all duration-300 group-hover:scale-110 group-hover:text-blue-600" /> : 
                           <ChevronRight className="w-4 h-4 ml-auto transition-all duration-300 group-hover:scale-110 group-hover:translate-x-1 group-hover:text-blue-600" />
                       )}
+                      {item.id === "finance" && (
+                        showFinanceSubmenu ? 
+                          <ChevronDown className="w-4 h-4 ml-auto transition-all duration-300 group-hover:scale-110 group-hover:text-blue-600" /> : 
+                          <ChevronRight className="w-4 h-4 ml-auto transition-all duration-300 group-hover:scale-110 group-hover:translate-x-1 group-hover:text-blue-600" />
+                      )}
                     </>
                   )}
                 </Button>
@@ -257,6 +281,30 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
                 {item.id === "quality_control" && showQCSubmenu && !isCollapsed && (
                   <div className="ml-6 mt-2 space-y-1">
                     {qcSubMenuItems.map((subItem) => {
+                      const SubIcon = subItem.icon;
+                      const isSubActive = activeTab === subItem.id;
+                      return (
+                        <Button
+                          key={subItem.id}
+                          variant={isSubActive ? "default" : "ghost"}
+                          className={`w-full justify-start gap-3 text-sm transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-md hover:translate-x-2 hover:-translate-y-0.5 group relative overflow-hidden ${
+                            isSubActive
+                              ? "bg-[#0075cf] text-white hover:bg-[#114771] shadow-sm"
+                              : "text-[#273240] hover:bg-gradient-to-r hover:from-blue-50 hover:to-cyan-50 hover:text-[#0075cf] hover:border-l-2 hover:border-blue-400"
+                          }`}
+                          onClick={() => handleTabClick(subItem.id)}
+                        >
+                          <SubIcon className="w-3 h-3 transition-all duration-300 group-hover:scale-125 group-hover:rotate-12 group-hover:text-blue-600" />
+                          <span className="transition-all duration-300 group-hover:translate-x-1 group-hover:font-medium">{subItem.label}</span>
+                        </Button>
+                      );
+                    })}
+                  </div>
+                )}
+                
+                {item.id === "finance" && showFinanceSubmenu && !isCollapsed && (
+                  <div className="ml-6 mt-2 space-y-1">
+                    {financeSubMenuItems.map((subItem) => {
                       const SubIcon = subItem.icon;
                       const isSubActive = activeTab === subItem.id;
                       return (
