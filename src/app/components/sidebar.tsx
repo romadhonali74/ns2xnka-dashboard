@@ -196,10 +196,16 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
 
   // Filter menu berdasarkan role dan bureu
   const getVisibleMenuItems = () => {
-    // Logic existing untuk showLoadingRate
-    return showLoadingRate
+    let items = showLoadingRate
       ? menuItems
       : menuItems.filter((m) => m.id !== "loading-rate");
+    
+    // Hide Finance menu if user email is not romadhonali74@gmail.com
+    if (user?.email !== 'romadhonali74@gmail.com') {
+      items = items.filter((m) => m.id !== "finance");
+    }
+    
+    return items;
   };
 
   const visibleMenuItems = getVisibleMenuItems();
