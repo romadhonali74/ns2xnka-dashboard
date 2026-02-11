@@ -27,7 +27,13 @@ export async function GET(request: Request) {
 
     if (error) throw error;
 
-    const menuKeys = data.map(p => p.menu_items.menu_key);
+    // const menuKeys = data.map(p => p.menu_items.menu_key);
+    // Tambahkan pengecekan atau casting 'any' biar TypeScript gak protes
+    const menuKeys = data.map((p: any) => {
+      // Karena p.menu_items bisa dianggap array oleh TS, kita ambil index ke-0 
+      // atau akses langsung jika TS sudah tenang
+      return Array.isArray(p.menu_items) ? p.menu_items[0]?.menu_key : p.menu_items?.menu_key;
+    });
     return NextResponse.json(menuKeys);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

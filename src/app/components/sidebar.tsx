@@ -9,6 +9,8 @@ import { useAuth } from "../providers/auth_provider";
 import { useUserRole } from "../hooks/useUserRole";
 import LogoutLoader from "./logout-loader";
 
+type ActiveTab = "home" | "loading-rate" | "issues" | "mining-reports" | "quality_control" | "qc-gcs" | "qc-pra_produksi" | "qc-produksi" | "qc-kapal" | "qc-product_details" | "finance" | "finance-cash-cost" | "user_management";
+
 
 interface SidebarProps {
   onTabChange?: (tab: string) => void;
@@ -237,7 +239,8 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
             const isActive = activeTab === item.id;
             const isQCParent = item.id === "quality_control" && (activeTab === "quality_control" || activeTab.startsWith("qc-"));
             const isFinanceParent = item.id === "finance" && (activeTab === "finance" || activeTab.startsWith("finance-"));
-            const isUserMgmtParent = item.id === "user_management" && (activeTab === "user_management" || activeTab.startsWith("user-"));
+            const isUserMgmtParent = item.id === "user_management" && (activeTab.startsWith("user-"));
+            // const isUserMgmtParent = item.id === "user_management" && (activeTab === "user_management" || activeTab.startsWith("user-"));
             
             return (
               <div key={item.id}>
