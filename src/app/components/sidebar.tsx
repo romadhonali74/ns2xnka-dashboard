@@ -6,6 +6,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "../lib/supabase"; // Impor supabase
 import { useEffect, useState } from "react";
 import { useAuth } from "../providers/auth_provider";
+import { useUserRole } from "../hooks/useUserRole";
 import LogoutLoader from "./logout-loader";
 
 
@@ -17,52 +18,18 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useAuth();
-  const [bureu, setBureu] = useState<string | null>(null);
-  const [role, setRole] = useState<string | null>(null);
+  const { bureau, isAdmin, permissions } = useUserRole();
   const [showLoadingRate, setShowLoadingRate] = useState<boolean>(false);
   const [showQCSubmenu, setShowQCSubmenu] = useState<boolean>(false);
   const [showFinanceSubmenu, setShowFinanceSubmenu] = useState<boolean>(false);
+  const [showUserMgmtSubmenu, setShowUserMgmtSubmenu] = useState<boolean>(false);
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState<boolean>(false);
 
-
   useEffect(() => {
-    try {
-      const root: any = user ?? null;
-      
-      const candidates = [
-        root?.app_metadata?.bureu,
-        root?.user_metadata?.bureu,
-        root?.raw_app_meta_data?.bureu,
-        root?.raw_user_meta_data?.bureu,
-      ];
-      const normalize = (v: unknown) =>
-        typeof v === "string" ? v.trim().toLowerCase() : "";
-      const normalized = candidates.map(normalize).filter((s) => s && s !== "-");
-      const knownSet = new Set(["shipping", "mining", "qc"]);
-      const firstValid = normalized.find((s) => knownSet.has(s)) || null;
-      setBureu(firstValid);
-
-      const roleCandidates = [
-        root?.app_metadata?.role,
-        root?.user_metadata?.role,
-        root?.raw_app_meta_data?.role,
-        root?.raw_user_meta_data?.role,
-      ];
-      const r = normalize(roleCandidates.find((x: unknown) => typeof x === "string"));
-      setRole(r || null);
-
-      const hasShipping = normalized.includes("shipping");
-      const hasMiningOrQc = normalized.includes("mining") || normalized.includes("qc");
-      const visible = hasShipping ? true : hasMiningOrQc ? false : true;
-      setShowLoadingRate(visible);
-    } catch {
-      setBureu(null);
-      setRole(null);
-      setShowLoadingRate(true);
-    }
-  }, [user]);
+    setShowLoadingRate(permissions.includes('loading-rate') || isAdmin);
+  }, [permissions, isAdmin]);
 
   // Fungsi untuk menentukan tab aktif berdasarkan pathname saat ini
   const getActiveTab = () => {
@@ -79,6 +46,9 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
     if (pathname === "/finance") return "finance";
     if (pathname === "/finance/cash_cost_report") return "finance-cash-cost";
     if (pathname === "/finance/detail_report") return "finance-detail";
+    if (pathname === "/user_management/details") return "user-details";
+    if (pathname === "/user_management/privileges") return "user-privileges";
+    if (pathname === "/users") return "users";
     if (pathname.startsWith("/realisasi_pengapalan")) return "daily-operations";
     return "home";
   };
@@ -89,6 +59,9 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
     }
     if (pathname.startsWith("/finance")) {
       setShowFinanceSubmenu(true);
+    }
+    if (pathname.startsWith("/user_management")) {
+      setShowUserMgmtSubmenu(true);
     }
   }, [pathname]);
 
@@ -165,6 +138,14 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
       router.push("/finance/cash_cost_report");
     } else if (tab === "finance-detail") {
       router.push("/finance/detail_report");
+    } else if (tab === "user_management") {
+      setShowUserMgmtSubmenu(!showUserMgmtSubmenu);
+    } else if (tab === "user-details") {
+      router.push("/user_management/details");
+    } else if (tab === "user-privileges") {
+      router.push("/user_management/privileges");
+    } else if (tab === "users") {
+      router.push("/users");
     } else if (tab === "logout") {
       confirmLogout();
     }
@@ -178,6 +159,7 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
     { id: "quality_control", label: "Quality Control", icon: ShieldCheck },
     { id: "mining-reports", label: "Mining Reports", icon: BarChart3 },
     { id: "finance", label: "Finance", icon: DollarSign },
+    { id: "user_management", label: "User Management", icon: Settings },
     { id: "logout", label: "Log out", icon: LogOut },
   ];
 
@@ -194,18 +176,20 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
     { id: "finance-detail", label: "Detail Report", icon: Receipt },
   ];
 
-  // Filter menu berdasarkan role dan bureu
+  const userMgmtSubMenuItems = [
+    { id: "user-details", label: "Details", icon: Users },
+    { id: "user-privileges", label: "Group Privilege", icon: ShieldCheck },
+  ];
+
+  // Filter menu berdasarkan permissions dari database
   const getVisibleMenuItems = () => {
-    let items = showLoadingRate
-      ? menuItems
-      : menuItems.filter((m) => m.id !== "loading-rate");
+    if (isAdmin) return menuItems;
     
-    // Hide Finance menu if user email is not romadhonali74@gmail.com
-    if (user?.email !== 'romadhonali74@gmail.com') {
-      items = items.filter((m) => m.id !== "finance");
-    }
-    
-    return items;
+    return menuItems.filter(item => {
+      if (item.id === 'logout') return true;
+      if (item.id === 'home') return true;
+      return permissions.includes(item.id);
+    });
   };
 
   const visibleMenuItems = getVisibleMenuItems();
@@ -253,13 +237,14 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
             const isActive = activeTab === item.id;
             const isQCParent = item.id === "quality_control" && (activeTab === "quality_control" || activeTab.startsWith("qc-"));
             const isFinanceParent = item.id === "finance" && (activeTab === "finance" || activeTab.startsWith("finance-"));
+            const isUserMgmtParent = item.id === "user_management" && (activeTab === "user_management" || activeTab.startsWith("user-"));
             
             return (
               <div key={item.id}>
                 <Button
-                  variant={isActive || isQCParent || isFinanceParent ? "default" : "ghost"}
+                  variant={isActive || isQCParent || isFinanceParent || isUserMgmtParent ? "default" : "ghost"}
                   className={`w-full ${isCollapsed ? 'justify-center p-2' : 'justify-start gap-3'} transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg hover:-translate-y-0.5 group relative overflow-hidden ${
-                    isActive || isQCParent || isFinanceParent
+                    isActive || isQCParent || isFinanceParent || isUserMgmtParent
                       ? "bg-[#0075cf] text-white hover:bg-[#114771] shadow-md"
                       : "text-[#273240] hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-[#0075cf] hover:border-blue-200"
                   }`}
@@ -277,6 +262,11 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
                       )}
                       {item.id === "finance" && (
                         showFinanceSubmenu ? 
+                          <ChevronDown className="w-4 h-4 ml-auto transition-all duration-300 group-hover:scale-110 group-hover:text-blue-600" /> : 
+                          <ChevronRight className="w-4 h-4 ml-auto transition-all duration-300 group-hover:scale-110 group-hover:translate-x-1 group-hover:text-blue-600" />
+                      )}
+                      {item.id === "user_management" && (
+                        showUserMgmtSubmenu ? 
                           <ChevronDown className="w-4 h-4 ml-auto transition-all duration-300 group-hover:scale-110 group-hover:text-blue-600" /> : 
                           <ChevronRight className="w-4 h-4 ml-auto transition-all duration-300 group-hover:scale-110 group-hover:translate-x-1 group-hover:text-blue-600" />
                       )}
@@ -311,6 +301,30 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
                 {item.id === "finance" && showFinanceSubmenu && !isCollapsed && (
                   <div className="ml-6 mt-2 space-y-1">
                     {financeSubMenuItems.map((subItem) => {
+                      const SubIcon = subItem.icon;
+                      const isSubActive = activeTab === subItem.id;
+                      return (
+                        <Button
+                          key={subItem.id}
+                          variant={isSubActive ? "default" : "ghost"}
+                          className={`w-full justify-start gap-3 text-sm transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-md hover:translate-x-2 hover:-translate-y-0.5 group relative overflow-hidden ${
+                            isSubActive
+                              ? "bg-[#0075cf] text-white hover:bg-[#114771] shadow-sm"
+                              : "text-[#273240] hover:bg-gradient-to-r hover:from-blue-50 hover:to-cyan-50 hover:text-[#0075cf] hover:border-l-2 hover:border-blue-400"
+                          }`}
+                          onClick={() => handleTabClick(subItem.id)}
+                        >
+                          <SubIcon className="w-3 h-3 transition-all duration-300 group-hover:scale-125 group-hover:rotate-12 group-hover:text-blue-600" />
+                          <span className="transition-all duration-300 group-hover:translate-x-1 group-hover:font-medium">{subItem.label}</span>
+                        </Button>
+                      );
+                    })}
+                  </div>
+                )}
+                
+                {item.id === "user_management" && showUserMgmtSubmenu && !isCollapsed && (
+                  <div className="ml-6 mt-2 space-y-1">
+                    {userMgmtSubMenuItems.map((subItem) => {
                       const SubIcon = subItem.icon;
                       const isSubActive = activeTab === subItem.id;
                       return (

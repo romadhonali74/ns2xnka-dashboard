@@ -29,14 +29,28 @@ interface FinanceSummary {
   month: number | null;
 }
 
+interface SummaryItem {
+  id: number;
+  name: string;
+}
+
 export default function DetailReportPage() {
   const [categories, setCategories] = useState<FinanceCategory[]>([]);
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
   const [financeSummary, setFinanceSummary] = useState<FinanceSummary[]>([]);
+  const [summaryItems, setSummaryItems] = useState<SummaryItem[]>([]);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(0);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [showModal, setShowModal] = useState(false);
+  const [formPage, setFormPage] = useState(1);
+  const [formData, setFormData] = useState({
+    month: new Date().getMonth() + 1,
+    year: new Date().getFullYear(),
+    cat1: 0, cat6: 0, cat3: 0, cat9: 0, cat10: 0, cat11: 0, cat18: 0, cat19: 0, cat20: 0, cat21: 0, cat22: 0, cat23: 0,
+    cat24: 0, cat8: 0, cat12: 0, cat13: 0, cat25: 0, cat14: 0, cat26: 0
+  });
 
   const formatCurrency = (amount: number) => {
     return `Rp ${amount.toLocaleString('id-ID').replace(/,/g, '.')}`;
@@ -48,8 +62,25 @@ export default function DetailReportPage() {
   };
 
   useEffect(() => {
+    fetchMasterItems();
+  }, []);
+
+  useEffect(() => {
     fetchCategories();
   }, [selectedMonth, selectedYear]);
+
+  const fetchMasterItems = async () => {
+    try {
+      const response = await fetch('/api/finance-summary-items');
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Summary Items:', data);
+        setSummaryItems(data);
+      }
+    } catch (error) {
+      console.error('Error fetching master items:', error);
+    }
+  };
 
   const getAmountForCategory = (categoryId: number) => {
     const data = monthlyData.find(item => item.category_id === categoryId);
@@ -157,6 +188,23 @@ export default function DetailReportPage() {
     );
   };
 
+  const handleSubmit = async () => {
+    try {
+      const response = await fetch('/api/finance-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+      if (response.ok) {
+        setShowModal(false);
+        setFormPage(1);
+        fetchCategories();
+      }
+    } catch (error) {
+      console.error('Error submitting form:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen" style={{ backgroundColor: "#f1f2f7" }}>
@@ -180,6 +228,12 @@ export default function DetailReportPage() {
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-[#273240]">Detail Laporan Keuangan</h1>
             <div className="flex gap-3">
+              <button
+                onClick={() => setShowModal(true)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                + Add Financial Data
+              </button>
               <select 
                 value={selectedMonth} 
                 onChange={(e) => setSelectedMonth(Number(e.target.value))}
@@ -314,34 +368,15 @@ export default function DetailReportPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td className="border border-gray-300 px-3 py-2 text-sm">Jumlah Hasil Penjualan</td>
-                      <td className="border border-gray-300 px-3 py-2 text-right text-sm">{formatCurrency(3330418111467)}</td>
-                    </tr>
-                    <tr>
-                      <td className="border border-gray-300 px-3 py-2 text-sm">Jumlah Biaya Produksi</td>
-                      <td className="border border-gray-300 px-3 py-2 text-right text-sm">{formatCurrency(909477221981)}</td>
-                    </tr>
-                    <tr>
-                      <td className="border border-gray-300 px-3 py-2 text-sm">Harga Pokok Penjualan</td>
-                      <td className="border border-gray-300 px-3 py-2 text-right text-sm">{formatCurrency(905260159286)}</td>
-                    </tr>
-                    <tr>
-                      <td className="border border-gray-300 px-3 py-2 text-sm">Laba (RUGI) Kotor</td>
-                      <td className="border border-gray-300 px-3 py-2 text-right text-sm">{formatCurrency(2425157952180)}</td>
-                    </tr>
-                    <tr>
-                      <td className="border border-gray-300 px-3 py-2 text-sm">Jumlah Biaya Usaha</td>
-                      <td className="border border-gray-300 px-3 py-2 text-right text-sm">{formatCurrency(315376838232)}</td>
-                    </tr>
-                    <tr>
-                      <td className="border border-gray-300 px-3 py-2 text-sm">Laba (RUGI) Usaha</td>
-                      <td className="border border-gray-300 px-3 py-2 text-right text-sm">{formatCurrency(2109781113948)}</td>
-                    </tr>
-                    <tr>
-                      <td className="border border-gray-300 px-3 py-2 text-sm">Jumlah Beban dan Pendapatan Lain</td>
-                      <td className="border border-gray-300 px-3 py-2 text-right text-sm">{formatCurrency(33375047014)}</td>
-                    </tr>
+                    {summaryItems.filter(item => item.id >= 1 && item.id <= 7).map((item) => {
+                      const amountData = financeSummary.find(f => f.id === item.id);
+                      return (
+                        <tr key={item.id}>
+                          <td className="border border-gray-300 px-3 py-2 text-sm">{item.name}</td>
+                          <td className="border border-gray-300 px-3 py-2 text-right text-sm">{formatCurrency(amountData?.amount || 0)}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -356,22 +391,15 @@ export default function DetailReportPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td className="border border-gray-300 px-3 py-2 text-sm">Laba Sebelum Pajak</td>
-                      <td className="border border-gray-300 px-3 py-2 text-right text-sm">{formatCurrency(2143156160962)}</td>
-                    </tr>
-                    <tr>
-                      <td className="border border-gray-300 px-3 py-2 text-sm">Pajak</td>
-                      <td className="border border-gray-300 px-3 py-2 text-right text-sm">{formatCurrency(470961379304)}</td>
-                    </tr>
-                    <tr>
-                      <td className="border border-gray-300 px-3 py-2 text-sm">EAT</td>
-                      <td className="border border-gray-300 px-3 py-2 text-right text-sm">{formatCurrency(1672194781658)}</td>
-                    </tr>
-                    <tr>
-                      <td className="border border-gray-300 px-3 py-2 text-sm">EBITDA</td>
-                      <td className="border border-gray-300 px-3 py-2 text-right text-sm">{formatCurrency(2189227154289)}</td>
-                    </tr>
+                    {summaryItems.filter(item => item.id >= 8 && item.id <= 11).map((item) => {
+                      const amountData = financeSummary.find(f => f.id === item.id);
+                      return (
+                        <tr key={item.id}>
+                          <td className="border border-gray-300 px-3 py-2 text-sm">{item.name}</td>
+                          <td className="border border-gray-300 px-3 py-2 text-right text-sm">{formatCurrency(amountData?.amount || 0)}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -393,6 +421,158 @@ export default function DetailReportPage() {
           </div>
         </div>
       </div>
+
+      {/* Modal Form */}
+      {showModal && (
+        <div className="fixed inset-0 bg-white/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-8 py-6">
+              <h2 className="text-2xl font-bold text-white">Add Financial Data</h2>
+              <p className="text-blue-100 text-sm mt-1">Page {formPage} of 2</p>
+            </div>
+            
+            <div className="p-8 overflow-y-auto" style={{maxHeight: 'calc(90vh - 180px)'}}>
+              <div className="mb-6 grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Bulan</label>
+                  <select value={formData.month} onChange={(e) => setFormData({...formData, month: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors">
+                    <option value={1}>Januari</option>
+                    <option value={2}>Februari</option>
+                    <option value={3}>Maret</option>
+                    <option value={4}>April</option>
+                    <option value={5}>Mei</option>
+                    <option value={6}>Juni</option>
+                    <option value={7}>Juli</option>
+                    <option value={8}>Agustus</option>
+                    <option value={9}>September</option>
+                    <option value={10}>Oktober</option>
+                    <option value={11}>November</option>
+                    <option value={12}>Desember</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Tahun</label>
+                  <input type="number" value={formData.year} onChange={(e) => setFormData({...formData, year: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                </div>
+              </div>
+
+              {formPage === 1 && (
+                <div className="space-y-4">
+                  <div className="bg-blue-50 rounded-xl p-4">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Jumlah Hasil Penjualan</label>
+                    <input type="number" value={formData.cat1} onChange={(e) => setFormData({...formData, cat1: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-blue-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="font-bold text-gray-800 mb-4">Harga Pokok Penjualan</p>
+                    <div className="space-y-3">
+                      <div className="pl-4">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Persediaan Awal</label>
+                        <input type="number" value={formData.cat6} onChange={(e) => setFormData({...formData, cat6: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                      </div>
+                      <div className="pl-8 grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-600 mb-2">Biaya Produksi</label>
+                          <input type="number" value={formData.cat3} onChange={(e) => setFormData({...formData, cat3: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-600 mb-2">Biaya Bahan</label>
+                          <input type="number" value={formData.cat9} onChange={(e) => setFormData({...formData, cat9: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-600 mb-2">Biaya Pegawai</label>
+                          <input type="number" value={formData.cat10} onChange={(e) => setFormData({...formData, cat10: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-600 mb-2">Biaya Jasa</label>
+                          <input type="number" value={formData.cat11} onChange={(e) => setFormData({...formData, cat11: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-600 mb-2">Biaya Lain</label>
+                          <input type="number" value={formData.cat18} onChange={(e) => setFormData({...formData, cat18: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-600 mb-2">Biaya Depresiasi</label>
+                          <input type="number" value={formData.cat19} onChange={(e) => setFormData({...formData, cat19: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-600 mb-2">Biaya Amortisasi</label>
+                          <input type="number" value={formData.cat20} onChange={(e) => setFormData({...formData, cat20: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-600 mb-2">Biaya Pajak dan Retribusi</label>
+                          <input type="number" value={formData.cat21} onChange={(e) => setFormData({...formData, cat21: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-600 mb-2">Biaya Royalti</label>
+                          <input type="number" value={formData.cat22} onChange={(e) => setFormData({...formData, cat22: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-600 mb-2">Biaya Litbang</label>
+                          <input type="number" value={formData.cat23} onChange={(e) => setFormData({...formData, cat23: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {formPage === 2 && (
+                <div className="space-y-4">
+                  <div className="bg-blue-50 rounded-xl p-4 grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Biaya Ore di Transfer ke Pomalaa</label>
+                      <input type="number" value={formData.cat24} onChange={(e) => setFormData({...formData, cat24: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-blue-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Persediaan Akhir</label>
+                      <input type="number" value={formData.cat8} onChange={(e) => setFormData({...formData, cat8: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-blue-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="font-bold text-gray-800 mb-4">Biaya Usaha</p>
+                    <div className="pl-4 grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-2">Beban Admin & Umum</label>
+                        <input type="number" value={formData.cat12} onChange={(e) => setFormData({...formData, cat12: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-2">Beban Pemasaran</label>
+                        <input type="number" value={formData.cat13} onChange={(e) => setFormData({...formData, cat13: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-600 mb-2">Biaya Overhead Kirim Pomalaa</label>
+                        <input type="number" value={formData.cat25} onChange={(e) => setFormData({...formData, cat25: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="font-bold text-gray-800 mb-4">Beban & Pendapatan Lain</p>
+                    <div className="pl-4 grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-2">Pendapatan dan Beban Keuangan</label>
+                        <input type="number" value={formData.cat14} onChange={(e) => setFormData({...formData, cat14: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-2">Pendapatan dan Beban Lain-lain</label>
+                        <input type="number" value={formData.cat26} onChange={(e) => setFormData({...formData, cat26: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-gray-50 px-8 py-5 flex justify-between items-center border-t">
+              <button onClick={() => setShowModal(false)} className="px-6 py-2.5 border-2 border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-100 transition-colors">Cancel</button>
+              <div className="flex gap-3">
+                {formPage === 2 && <button onClick={() => setFormPage(1)} className="px-6 py-2.5 border-2 border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-100 transition-colors">Previous</button>}
+                {formPage === 1 && <button onClick={() => setFormPage(2)} className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition-colors shadow-lg">Next →</button>}
+                {formPage === 2 && <button onClick={handleSubmit} className="px-6 py-2.5 bg-green-600 text-white font-medium rounded-xl hover:bg-green-700 transition-colors shadow-lg">Submit</button>}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
