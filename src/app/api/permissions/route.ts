@@ -20,6 +20,10 @@ export async function GET(request: Request) {
       .select(`
         menu_id,
         can_view,
+        can_create,
+        can_edit,
+        can_delete,
+        bureau_groups!inner(name),
         menu_items!inner(menu_key)
       `)
       .eq('bureau_groups.name', bureau)
@@ -27,14 +31,23 @@ export async function GET(request: Request) {
 
     if (error) throw error;
 
-    // const menuKeys = data.map(p => p.menu_items.menu_key);
-    // Tambahkan pengecekan atau casting 'any' biar TypeScript gak protes
-    const menuKeys = data.map((p: any) => {
-      // Karena p.menu_items bisa dianggap array oleh TS, kita ambil index ke-0 
-      // atau akses langsung jika TS sudah tenang
+    const menuKeys = data?.map((p: any) => {
       return Array.isArray(p.menu_items) ? p.menu_items[0]?.menu_key : p.menu_items?.menu_key;
+    }) || [];
+
+    const crudPermissions: Record<string, { canCreate: boolean; canEdit: boolean; canDelete: boolean }> = {};
+    data?.forEach((p: any) => {
+      const menuKey = Array.isArray(p.menu_items) ? p.menu_items[0]?.menu_key : p.menu_items?.menu_key;
+      if (menuKey) {
+        crudPermissions[menuKey] = {
+          canCreate: p.can_create || false,
+          canEdit: p.can_edit || false,
+          canDelete: p.can_delete || false,
+        };
+      }
     });
-    return NextResponse.json(menuKeys);
+    
+    return NextResponse.json({ menuKeys, crudPermissions });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

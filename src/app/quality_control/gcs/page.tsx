@@ -15,7 +15,7 @@ import {
 import { Button } from "../../components/ui/button";
 import { Plus, Edit, Trash2, Search, Filter, Download, FileText } from "lucide-react";
 import { useAuth } from "../../providers/auth_provider";
-import { useQCPermission } from "../../hooks/useQCPermission";
+import { useCrudPermissions } from "../../hooks/useUserRole";
 
 
 interface User {
@@ -36,7 +36,8 @@ interface User {
 }
 
 export default function StylishCRUDTable() {
-  const { canAddData, showActions } = useQCPermission();
+  const { canCreate, canEdit, canDelete } = useCrudPermissions('quality_control');
+  const showActions = canEdit || canDelete;
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -359,7 +360,7 @@ export default function StylishCRUDTable() {
         <div className="crud-container">
             <div className="crud-header">
                     <h2>Geological Control System</h2>
-                    {canAddData && (
+                    {canCreate && (
                       <button className="btn-primary" onClick={() => setShowModal(true)} style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
                         <Plus size={16} />
                         Add Data

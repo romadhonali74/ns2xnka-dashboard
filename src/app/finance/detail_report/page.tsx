@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Sidebar from "../../components/sidebar";
+import { useCrudPermissions } from "../../hooks/useUserRole";
 
 interface FinanceCategory {
   id: number;
@@ -35,6 +36,7 @@ interface SummaryItem {
 }
 
 export default function DetailReportPage() {
+  const { canCreate, canEdit, canDelete } = useCrudPermissions('finance');
   const [categories, setCategories] = useState<FinanceCategory[]>([]);
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
   const [financeSummary, setFinanceSummary] = useState<FinanceSummary[]>([]);
@@ -228,12 +230,14 @@ export default function DetailReportPage() {
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-[#273240]">Detail Laporan Keuangan</h1>
             <div className="flex gap-3">
-              <button
-                onClick={() => setShowModal(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                + Add Financial Data
-              </button>
+              {canCreate && (
+                <button
+                  onClick={() => setShowModal(true)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  + Add Financial Data
+                </button>
+              )}
               <select 
                 value={selectedMonth} 
                 onChange={(e) => setSelectedMonth(Number(e.target.value))}

@@ -8,6 +8,7 @@ interface UserRoleData {
   isAdmin: boolean;
   isLoading: boolean;
   permissions: string[];
+  crudPermissions: Record<string, { canCreate: boolean; canEdit: boolean; canDelete: boolean }>;
 }
 
 export const useUserRole = (): UserRoleData => {
@@ -19,17 +20,20 @@ export const useUserRole = (): UserRoleData => {
     isAdmin: false,
     isLoading: true,
     permissions: [],
+    crudPermissions: {},
   });
 
   useEffect(() => {
     const fetchPermissions = async (bureau: string) => {
       try {
+        console.log('Fetching permissions for bureau:', bureau);
         const response = await fetch(`/api/permissions?bureau=${bureau}`);
         const data = await response.json();
-        return data || [];
+        console.log('Permissions received:', data);
+        return data || { menuKeys: [], crudPermissions: {} };
       } catch (error) {
         console.error('Error fetching permissions:', error);
-        return [];
+        return { menuKeys: [], crudPermissions: {} };
       }
     };
 
@@ -42,6 +46,7 @@ export const useUserRole = (): UserRoleData => {
           isAdmin: false,
           isLoading: false,
           permissions: [],
+          crudPermissions: {},
         });
         return;
       }
@@ -54,8 +59,11 @@ export const useUserRole = (): UserRoleData => {
       const bureau = user.app_metadata?.bureau || user.user_metadata?.bureau || null;
 
       let permissions: string[] = [];
+      let crudPermissions: Record<string, { canCreate: boolean; canEdit: boolean; canDelete: boolean }> = {};
       if (!isAdmin && bureau) {
-        permissions = await fetchPermissions(bureau);
+        const permData = await fetchPermissions(bureau);
+        permissions = permData.menuKeys || [];
+        crudPermissions = permData.crudPermissions || {};
       }
 
       setRoleData({
@@ -65,6 +73,7 @@ export const useUserRole = (): UserRoleData => {
         isAdmin,
         isLoading: false,
         permissions,
+        crudPermissions,
       });
     };
 
@@ -110,4 +119,11 @@ export const useHasMenuPermission = (menuKey: string): boolean => {
   const { permissions, isAdmin } = useUserRole();
   if (isAdmin) return true;
   return permissions.includes(menuKey);
+};
+
+// Helper hook to check CRUD permissions
+export const useCrudPermissions = (menuKey: string) => {
+  const { crudPermissions, isAdmin } = useUserRole();
+  if (isAdmin) return { canCreate: true, canEdit: true, canDelete: true };
+  return crudPermissions[menuKey] || { canCreate: false, canEdit: false, canDelete: false };
 };

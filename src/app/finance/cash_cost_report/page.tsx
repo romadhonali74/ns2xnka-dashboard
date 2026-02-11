@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Sidebar from "../../components/sidebar";
+import { useCrudPermissions, useUserRole } from "../../hooks/useUserRole";
 
 interface FinanceCategoryMaster {
   id: number;
@@ -27,6 +28,8 @@ interface CashCostData {
 }
 
 export default function CashCostReportPage() {
+  const { canCreate, canEdit, canDelete } = useCrudPermissions('finance');
+  const { isLoading: permissionsLoading } = useUserRole();
   const [categories, setCategories] = useState<FinanceCategoryMaster[]>([]);
   const [cashCostData, setCashCostData] = useState<CashCostData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -137,7 +140,7 @@ export default function CashCostReportPage() {
     }
   };
 
-if (loading) {
+if (loading || permissionsLoading) {
     return (
       <div className="min-h-screen" style={{ backgroundColor: "#f1f2f7" }}>
         <div className="flex">
@@ -222,18 +225,22 @@ if (loading) {
                           </div>
                         ) : (
                           <div className="flex gap-2 justify-center">
-                            <button
-                              onClick={() => setEditingId(item.id!)}
-                              className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleDelete(item.id!)}
-                              className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
-                            >
-                              Hapus
-                            </button>
+                            {canEdit && (
+                              <button
+                                onClick={() => setEditingId(item.id!)}
+                                className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"
+                              >
+                                Edit
+                              </button>
+                            )}
+                            {canDelete && (
+                              <button
+                                onClick={() => handleDelete(item.id!)}
+                                className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
+                              >
+                                Hapus
+                              </button>
+                            )}
                           </div>
                         )}
                       </td>
