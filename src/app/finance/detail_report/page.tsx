@@ -47,11 +47,16 @@ export default function DetailReportPage() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [showModal, setShowModal] = useState(false);
   const [formPage, setFormPage] = useState(1);
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertType, setAlertType] = useState<'success' | 'error'>('success');
+  const [isClosing, setIsClosing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear(),
-    cat1: 0, cat6: 0, cat3: 0, cat9: 0, cat10: 0, cat11: 0, cat18: 0, cat19: 0, cat20: 0, cat21: 0, cat22: 0, cat23: 0,
-    cat24: 0, cat8: 0, cat12: 0, cat13: 0, cat25: 0, cat14: 0, cat26: 0
+    cat1: '', cat6: '', cat9: '', cat10: '', cat11: '', cat18: '', cat19: '', cat20: '', cat21: '', cat22: '', cat23: '',
+    cat24: '', cat8: '', cat12: '', cat13: '', cat25: '', cat14: '', cat26: ''
   });
 
   const formatCurrency = (amount: number) => {
@@ -154,7 +159,7 @@ export default function DetailReportPage() {
               {children.length > 0 && (
                 <button
                   onClick={() => toggleRow(category.id)}
-                  className="mr-2 p-1 hover:bg-gray-200 rounded"
+                  className="mr-2 p-1 hover:bg-gray-200 rounded cursor-pointer"
                 >
                   <svg
                     className={`w-4 h-4 transition-transform ${
@@ -191,6 +196,7 @@ export default function DetailReportPage() {
   };
 
   const handleSubmit = async () => {
+    setIsSubmitting(true);
     try {
       const response = await fetch('/api/finance-data', {
         method: 'POST',
@@ -198,12 +204,46 @@ export default function DetailReportPage() {
         body: JSON.stringify(formData)
       });
       if (response.ok) {
+        setAlertType('success');
+        setAlertMessage('Data berhasil disimpan!');
+        setShowAlert(true);
         setShowModal(false);
         setFormPage(1);
         fetchCategories();
+        setTimeout(() => {
+          setIsClosing(true);
+          setTimeout(() => {
+            setShowAlert(false);
+            setIsClosing(false);
+          }, 300);
+        }, 2700);
+      } else {
+        const errorData = await response.json();
+        setAlertType('error');
+        setAlertMessage(`Gagal menyimpan data: ${errorData.error || 'Unknown error'}`);
+        setShowAlert(true);
+        setTimeout(() => {
+          setIsClosing(true);
+          setTimeout(() => {
+            setShowAlert(false);
+            setIsClosing(false);
+          }, 300);
+        }, 2700);
       }
     } catch (error) {
       console.error('Error submitting form:', error);
+      setAlertType('error');
+      setAlertMessage('Terjadi kesalahan saat menyimpan data. Silakan coba lagi.');
+      setShowAlert(true);
+      setTimeout(() => {
+        setIsClosing(true);
+        setTimeout(() => {
+          setShowAlert(false);
+          setIsClosing(false);
+        }, 300);
+      }, 2700);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -232,8 +272,17 @@ export default function DetailReportPage() {
             <div className="flex gap-3">
               {canCreate && (
                 <button
-                  onClick={() => setShowModal(true)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onClick={() => {
+                    setFormPage(1);
+                    setFormData({
+                      month: new Date().getMonth() + 1,
+                      year: new Date().getFullYear(),
+                      cat1: '', cat6: '', cat9: '', cat10: '', cat11: '', cat18: '', cat19: '', cat20: '', cat21: '', cat22: '', cat23: '',
+                      cat24: '', cat8: '', cat12: '', cat13: '', cat25: '', cat14: '', cat26: ''
+                    });
+                    setShowModal(true);
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
                 >
                   + Add Financial Data
                 </button>
@@ -426,6 +475,26 @@ export default function DetailReportPage() {
         </div>
       </div>
 
+      {/* Alert Notification */}
+      {showAlert && (
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 ${isClosing ? 'animate-slide-down' : 'animate-fade-in'}`}>
+          <div className={`px-6 py-4 rounded-lg shadow-lg ${
+            alertType === 'success' ? 'bg-green-500' : 'bg-red-500'
+          } text-white flex items-center gap-3`}>
+            {alertType === 'success' ? (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            )}
+            <span className="font-medium">{alertMessage}</span>
+          </div>
+        </div>
+      )}
+
       {/* Modal Form */}
       {showModal && (
         <div className="fixed inset-0 bg-white/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -435,7 +504,7 @@ export default function DetailReportPage() {
               <p className="text-blue-100 text-sm mt-1">Page {formPage} of 2</p>
             </div>
             
-            <div className="p-8 overflow-y-auto" style={{maxHeight: 'calc(90vh - 180px)'}}>
+            <div className="p-8 overflow-y-auto" id="modal-scroll-container" style={{maxHeight: 'calc(90vh - 180px)'}}>
               <div className="mb-6 grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Bulan</label>
@@ -464,55 +533,54 @@ export default function DetailReportPage() {
                 <div className="space-y-4">
                   <div className="bg-blue-50 rounded-xl p-4">
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Jumlah Hasil Penjualan</label>
-                    <input type="number" value={formData.cat1} onChange={(e) => setFormData({...formData, cat1: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-blue-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                    <input type="text" value={formData.cat1} onChange={(e) => setFormData({...formData, cat1: e.target.value})} className="w-full px-4 py-3 border-2 border-blue-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
                   </div>
                   <div className="bg-gray-50 rounded-xl p-4">
                     <p className="font-bold text-gray-800 mb-4">Harga Pokok Penjualan</p>
                     <div className="space-y-3">
                       <div className="pl-4">
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Persediaan Awal</label>
-                        <input type="number" value={formData.cat6} onChange={(e) => setFormData({...formData, cat6: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                        <input type="text" value={formData.cat6} onChange={(e) => setFormData({...formData, cat6: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                      </div>
+                      <div className="pl-4 mt-3">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Biaya Produksi</label>
                       </div>
                       <div className="pl-8 grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-sm font-medium text-gray-600 mb-2">Biaya Produksi</label>
-                          <input type="number" value={formData.cat3} onChange={(e) => setFormData({...formData, cat3: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
-                        </div>
-                        <div>
                           <label className="block text-sm font-medium text-gray-600 mb-2">Biaya Bahan</label>
-                          <input type="number" value={formData.cat9} onChange={(e) => setFormData({...formData, cat9: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                          <input type="text" value={formData.cat9} onChange={(e) => setFormData({...formData, cat9: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-600 mb-2">Biaya Pegawai</label>
-                          <input type="number" value={formData.cat10} onChange={(e) => setFormData({...formData, cat10: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                          <input type="text" value={formData.cat10} onChange={(e) => setFormData({...formData, cat10: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-600 mb-2">Biaya Jasa</label>
-                          <input type="number" value={formData.cat11} onChange={(e) => setFormData({...formData, cat11: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                          <input type="text" value={formData.cat11} onChange={(e) => setFormData({...formData, cat11: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-600 mb-2">Biaya Lain</label>
-                          <input type="number" value={formData.cat18} onChange={(e) => setFormData({...formData, cat18: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                          <input type="text" value={formData.cat18} onChange={(e) => setFormData({...formData, cat18: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-600 mb-2">Biaya Depresiasi</label>
-                          <input type="number" value={formData.cat19} onChange={(e) => setFormData({...formData, cat19: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                          <input type="text" value={formData.cat19} onChange={(e) => setFormData({...formData, cat19: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-600 mb-2">Biaya Amortisasi</label>
-                          <input type="number" value={formData.cat20} onChange={(e) => setFormData({...formData, cat20: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                          <input type="text" value={formData.cat20} onChange={(e) => setFormData({...formData, cat20: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-600 mb-2">Biaya Pajak dan Retribusi</label>
-                          <input type="number" value={formData.cat21} onChange={(e) => setFormData({...formData, cat21: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                          <input type="text" value={formData.cat21} onChange={(e) => setFormData({...formData, cat21: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-600 mb-2">Biaya Royalti</label>
-                          <input type="number" value={formData.cat22} onChange={(e) => setFormData({...formData, cat22: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                          <input type="text" value={formData.cat22} onChange={(e) => setFormData({...formData, cat22: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-600 mb-2">Biaya Litbang</label>
-                          <input type="number" value={formData.cat23} onChange={(e) => setFormData({...formData, cat23: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                          <input type="text" value={formData.cat23} onChange={(e) => setFormData({...formData, cat23: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
                         </div>
                       </div>
                     </div>
@@ -525,11 +593,11 @@ export default function DetailReportPage() {
                   <div className="bg-blue-50 rounded-xl p-4 grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Biaya Ore di Transfer ke Pomalaa</label>
-                      <input type="number" value={formData.cat24} onChange={(e) => setFormData({...formData, cat24: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-blue-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                      <input type="text" value={formData.cat24} onChange={(e) => setFormData({...formData, cat24: e.target.value})} className="w-full px-4 py-3 border-2 border-blue-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Persediaan Akhir</label>
-                      <input type="number" value={formData.cat8} onChange={(e) => setFormData({...formData, cat8: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-blue-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                      <input type="text" value={formData.cat8} onChange={(e) => setFormData({...formData, cat8: e.target.value})} className="w-full px-4 py-3 border-2 border-blue-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
                     </div>
                   </div>
                   <div className="bg-gray-50 rounded-xl p-4">
@@ -537,15 +605,15 @@ export default function DetailReportPage() {
                     <div className="pl-4 grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-sm font-medium text-gray-600 mb-2">Beban Admin & Umum</label>
-                        <input type="number" value={formData.cat12} onChange={(e) => setFormData({...formData, cat12: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                        <input type="text" value={formData.cat12} onChange={(e) => setFormData({...formData, cat12: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-600 mb-2">Beban Pemasaran</label>
-                        <input type="number" value={formData.cat13} onChange={(e) => setFormData({...formData, cat13: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                        <input type="text" value={formData.cat13} onChange={(e) => setFormData({...formData, cat13: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
                       </div>
                       <div className="col-span-2">
                         <label className="block text-sm font-medium text-gray-600 mb-2">Biaya Overhead Kirim Pomalaa</label>
-                        <input type="number" value={formData.cat25} onChange={(e) => setFormData({...formData, cat25: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                        <input type="text" value={formData.cat25} onChange={(e) => setFormData({...formData, cat25: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
                       </div>
                     </div>
                   </div>
@@ -554,11 +622,11 @@ export default function DetailReportPage() {
                     <div className="pl-4 grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-sm font-medium text-gray-600 mb-2">Pendapatan dan Beban Keuangan</label>
-                        <input type="number" value={formData.cat14} onChange={(e) => setFormData({...formData, cat14: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                        <input type="text" value={formData.cat14} onChange={(e) => setFormData({...formData, cat14: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-600 mb-2">Pendapatan dan Beban Lain-lain</label>
-                        <input type="number" value={formData.cat26} onChange={(e) => setFormData({...formData, cat26: Number(e.target.value)})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                        <input type="text" value={formData.cat26} onChange={(e) => setFormData({...formData, cat26: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
                       </div>
                     </div>
                   </div>
@@ -567,11 +635,19 @@ export default function DetailReportPage() {
             </div>
 
             <div className="bg-gray-50 px-8 py-5 flex justify-between items-center border-t">
-              <button onClick={() => setShowModal(false)} className="px-6 py-2.5 border-2 border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-100 transition-colors">Cancel</button>
+              <button onClick={() => setShowModal(false)} className="px-6 py-2.5 border-2 border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">Cancel</button>
               <div className="flex gap-3">
-                {formPage === 2 && <button onClick={() => setFormPage(1)} className="px-6 py-2.5 border-2 border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-100 transition-colors">Previous</button>}
-                {formPage === 1 && <button onClick={() => setFormPage(2)} className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition-colors shadow-lg">Next →</button>}
-                {formPage === 2 && <button onClick={handleSubmit} className="px-6 py-2.5 bg-green-600 text-white font-medium rounded-xl hover:bg-green-700 transition-colors shadow-lg">Submit</button>}
+                {formPage === 2 && <button onClick={handleSubmit} disabled={isSubmitting} className="px-6 py-2.5 bg-green-600 text-white font-medium rounded-xl hover:bg-green-700 transition-colors shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                  {isSubmitting && (
+                    <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  )}
+                  {isSubmitting ? 'Menyimpan...' : 'Submit'}
+                </button>}
+                {formPage === 2 && <button onClick={() => { setFormPage(1); document.getElementById('modal-scroll-container')?.scrollTo(0, 0); }} className="px-6 py-2.5 border-2 border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">Back</button>}
+                {formPage === 1 && <button onClick={() => { setFormPage(2); document.getElementById('modal-scroll-container')?.scrollTo(0, 0); }} className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition-colors shadow-lg cursor-pointer">Next</button>}
               </div>
             </div>
           </div>

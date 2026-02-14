@@ -21,6 +21,9 @@ interface Permission {
   bureau_id: number;
   menu_id: number;
   can_view: boolean;
+  can_create?: boolean;
+  can_edit?: boolean;
+  can_delete?: boolean;
   bureau_groups: { id: number; name: string };
   menu_items: { id: number; menu_key: string; menu_name: string };
 }
@@ -56,7 +59,7 @@ export default function GroupPrivilegePage() {
       setBureaus(bureausData);
       setMenus(menusData.filter((m: MenuItem) => m.parent_id === null));
       setPermissions(permissionsData);
-      setOriginalPermissions(permissionsData);
+      setOriginalPermissions(JSON.parse(JSON.stringify(permissionsData)));
       setPendingChanges(new Set());
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -95,30 +98,40 @@ export default function GroupPrivilegePage() {
     setPendingChanges(newChanges);
   };
 
+  const toggleCrudPermission = (bureauId: number, menuId: number, field: 'can_create' | 'can_edit' | 'can_delete') => {
+    const key = `${bureauId}-${menuId}-${field}`;
+    setPermissions(permissions.map(p => {
+      if (p.bureau_id === bureauId && p.menu_id === menuId) {
+        return { ...p, [field]: !p[field] };
+      }
+      return p;
+    }));
+
+    const newChanges = new Set(pendingChanges);
+    if (newChanges.has(key)) {
+      newChanges.delete(key);
+    } else {
+      newChanges.add(key);
+    }
+    setPendingChanges(newChanges);
+  };
+
   const handleSubmit = async () => {
     setSaving(true);
     try {
-      const originalSet = new Set(originalPermissions.map(p => `${p.bureau_id}-${p.menu_id}`));
-      const currentSet = new Set(permissions.map(p => `${p.bureau_id}-${p.menu_id}`));
-
-      for (const change of pendingChanges) {
-        const [bureauId, menuId] = change.split('-').map(Number);
-        
-        if (currentSet.has(change) && !originalSet.has(change)) {
+      for (const perm of permissions) {
+        const original = originalPermissions.find(p => p.id === perm.id);
+        if (original && (original.can_create !== perm.can_create || original.can_edit !== perm.can_edit || original.can_delete !== perm.can_delete)) {
           await fetch('/api/bureau-permissions', {
-            method: 'POST',
+            method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ bureau_id: bureauId, menu_id: menuId, can_view: true })
+            body: JSON.stringify({ 
+              id: perm.id, 
+              can_create: perm.can_create,
+              can_edit: perm.can_edit,
+              can_delete: perm.can_delete
+            })
           });
-        } else if (!currentSet.has(change) && originalSet.has(change)) {
-          const perm = originalPermissions.find(p => p.bureau_id === bureauId && p.menu_id === menuId);
-          if (perm) {
-            await fetch('/api/bureau-permissions', {
-              method: 'DELETE',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ id: perm.id })
-            });
-          }
         }
       }
 
@@ -184,14 +197,17 @@ export default function GroupPrivilegePage() {
               </button>
               <button
                 onClick={() => setShowModal(true)}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 cursor-pointer"
               >
                 + Add Permission
               </button>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+          <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-6">
+            <div className="px-6 py-4 bg-gray-100 border-b">
+              <h2 className="text-lg font-semibold text-gray-800">View Permissions</h2>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50">
@@ -223,6 +239,61 @@ export default function GroupPrivilegePage() {
                           </td>
                         );
                       })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div className="px-6 py-4 bg-gray-100 border-b">
+              <h2 className="text-lg font-semibold text-gray-800">CRUD Permissions</h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase sticky left-0 bg-gray-50">Bureau</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Menu</th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Create</th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Edit</th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Delete</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {permissions.filter(p => p.can_view && menus.find(m => m.id === p.menu_id)).map(perm => (
+                    <tr key={perm.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900 sticky left-0 bg-white">
+                        {bureaus.find(b => b.id === perm.bureau_id)?.name}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700">
+                        {menus.find(m => m.id === perm.menu_id)?.menu_name}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <input
+                          type="checkbox"
+                          checked={!!perm.can_create}
+                          onChange={() => toggleCrudPermission(perm.bureau_id, perm.menu_id, 'can_create')}
+                          className="w-5 h-5 text-green-600 rounded cursor-pointer"
+                        />
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <input
+                          type="checkbox"
+                          checked={!!perm.can_edit}
+                          onChange={() => toggleCrudPermission(perm.bureau_id, perm.menu_id, 'can_edit')}
+                          className="w-5 h-5 text-yellow-600 rounded cursor-pointer"
+                        />
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <input
+                          type="checkbox"
+                          checked={!!perm.can_delete}
+                          onChange={() => toggleCrudPermission(perm.bureau_id, perm.menu_id, 'can_delete')}
+                          className="w-5 h-5 text-red-600 rounded cursor-pointer"
+                        />
+                      </td>
                     </tr>
                   ))}
                 </tbody>

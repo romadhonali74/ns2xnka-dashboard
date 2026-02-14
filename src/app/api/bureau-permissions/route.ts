@@ -15,6 +15,9 @@ export async function GET() {
         bureau_id,
         menu_id,
         can_view,
+        can_create,
+        can_edit,
+        can_delete,
         bureau_groups(id, name),
         menu_items(id, menu_key, menu_name)
       `)
@@ -46,11 +49,17 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const { id, can_view } = await request.json();
+    const { id, can_view, can_create, can_edit, can_delete } = await request.json();
+
+    const updateData: any = {};
+    if (can_view !== undefined) updateData.can_view = can_view;
+    if (can_create !== undefined) updateData.can_create = can_create;
+    if (can_edit !== undefined) updateData.can_edit = can_edit;
+    if (can_delete !== undefined) updateData.can_delete = can_delete;
 
     const { data, error } = await supabase
       .from('bureau_menu_permissions')
-      .update({ can_view })
+      .update(updateData)
       .eq('id', id)
       .select();
 

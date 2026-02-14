@@ -212,13 +212,13 @@ if (loading || permissionsLoading) {
                           <div className="flex gap-2 justify-center">
                             <button
                               onClick={() => handleSave(item.id!)}
-                              className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm"
+                              className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm cursor-pointer"
                             >
                               Simpan
                             </button>
                             <button
                               onClick={() => setEditingId(null)}
-                              className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm"
+                              className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm cursor-pointer"
                             >
                               Batal
                             </button>
@@ -228,7 +228,7 @@ if (loading || permissionsLoading) {
                             {canEdit && (
                               <button
                                 onClick={() => setEditingId(item.id!)}
-                                className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"
+                                className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm cursor-pointer"
                               >
                                 Edit
                               </button>
@@ -236,7 +236,7 @@ if (loading || permissionsLoading) {
                             {canDelete && (
                               <button
                                 onClick={() => handleDelete(item.id!)}
-                                className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
+                                className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm cursor-pointer"
                               >
                                 Hapus
                               </button>
