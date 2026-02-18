@@ -422,11 +422,11 @@ export default function DetailReportPage() {
                   </thead>
                   <tbody>
                     {summaryItems.filter(item => item.id >= 1 && item.id <= 7).map((item) => {
-                      const amountData = financeSummary.find(f => f.id === item.id);
+                      const amount = getAmountForCategory(item.id);
                       return (
                         <tr key={item.id}>
                           <td className="border border-gray-300 px-3 py-2 text-sm">{item.name}</td>
-                          <td className="border border-gray-300 px-3 py-2 text-right text-sm">{formatCurrency(amountData?.amount || 0)}</td>
+                          <td className="border border-gray-300 px-3 py-2 text-right text-sm">{formatCurrency(amount)}</td>
                         </tr>
                       );
                     })}
@@ -445,11 +445,11 @@ export default function DetailReportPage() {
                   </thead>
                   <tbody>
                     {summaryItems.filter(item => item.id >= 8 && item.id <= 11).map((item) => {
-                      const amountData = financeSummary.find(f => f.id === item.id);
+                      const amount = getAmountForCategory(item.id);
                       return (
                         <tr key={item.id}>
                           <td className="border border-gray-300 px-3 py-2 text-sm">{item.name}</td>
-                          <td className="border border-gray-300 px-3 py-2 text-right text-sm">{formatCurrency(amountData?.amount || 0)}</td>
+                          <td className="border border-gray-300 px-3 py-2 text-right text-sm">{formatCurrency(amount)}</td>
                         </tr>
                       );
                     })}

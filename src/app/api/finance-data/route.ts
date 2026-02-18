@@ -14,39 +14,11 @@ export async function POST(request: Request) {
     const toNumber = (val: any) => val === '' || val === null || val === undefined ? null : Number(val);
 
     // Fetch existing data
-    const { data: existingSummary } = await supabase
-      .from('finance_summary')
-      .select('amount')
-      .eq('item_name', 'Jumlah Hasil Penjualan')
-      .eq('year', year)
-      .eq('month', month)
-      .single();
-
     const { data: existingMonthly } = await supabase
       .from('finance_monthly_data')
       .select('category_id, amount')
       .eq('year', year)
       .eq('month', month);
-
-    // Update or insert finance_summary
-    const cat1Value = toNumber(cat1) ?? existingSummary?.amount ?? 0;
-    await supabase
-      .from('finance_summary')
-      .delete()
-      .eq('item_name', 'Jumlah Hasil Penjualan')
-      .eq('year', year)
-      .eq('month', month);
-
-    const { error: summaryError } = await supabase
-      .from('finance_summary')
-      .insert({ 
-        item_name: 'Jumlah Hasil Penjualan', 
-        amount: cat1Value, 
-        year, 
-        month 
-      });
-
-    if (summaryError) throw summaryError;
 
     // Prepare monthly data with existing values as fallback
     const getExistingAmount = (catId: number) => {
@@ -61,6 +33,7 @@ export async function POST(request: Request) {
       .eq('month', month);
 
     const monthlyDataInserts = [
+      { category_id: 1, amount: toNumber(cat1) ?? getExistingAmount(1), year, month },
       { category_id: 6, amount: toNumber(cat6) ?? getExistingAmount(6), year, month },
       { category_id: 9, amount: toNumber(cat9) ?? getExistingAmount(9), year, month },
       { category_id: 10, amount: toNumber(cat10) ?? getExistingAmount(10), year, month },

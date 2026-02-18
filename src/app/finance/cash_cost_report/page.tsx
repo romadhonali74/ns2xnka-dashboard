@@ -33,7 +33,8 @@ export default function CashCostReportPage() {
   const [categories, setCategories] = useState<FinanceCategoryMaster[]>([]);
   const [cashCostData, setCashCostData] = useState<CashCostData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [editingData, setEditingData] = useState<CashCostData | null>(null);
 
   useEffect(() => {
     fetchCategories();
@@ -83,29 +84,35 @@ export default function CashCostReportPage() {
     }
   };
 
-  const handleInputChange = (id: number, field: keyof CashCostData, value: string) => {
-    setCashCostData(prev => prev.map(item => 
-      item.id === id ? { ...item, [field]: field === 'kategori_biaya' ? value : parseFloat(value) || 0 } : item
-    ));
+  const handleEdit = (item: CashCostData) => {
+    setEditingData({...item});
+    setShowModal(true);
   };
 
-  const handleSave = async (id: number) => {
-    const item = cashCostData.find(data => data.id === id);
-    if (!item) return;
+  const handleModalInputChange = (field: keyof CashCostData, value: string) => {
+    if (editingData) {
+      setEditingData({
+        ...editingData,
+        [field]: field === 'kategori_biaya' ? value : parseFloat(value) || 0
+      });
+    }
+  };
+
+  const handleSave = async () => {
+    if (!editingData) return;
 
     try {
       const monthNames = ['januari', 'februari', 'maret', 'april', 'mei', 'juni', 'juli', 'agustus', 'september', 'oktober', 'november', 'desember'];
       
-      // Save each month's data to finance_cash_cost table
       for (let month = 1; month <= 12; month++) {
         const monthName = monthNames[month - 1] as keyof CashCostData;
-        const nominal = item[monthName] as number;
+        const nominal = editingData[monthName] as number;
         
-        const response = await fetch('/api/finance-cash-cost', {
+        await fetch('/api/finance-cash-cost', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            category_id: item.id,
+            category_id: editingData.id,
             nominal: nominal,
             bulan: month,
             tahun: 2025
@@ -113,7 +120,9 @@ export default function CashCostReportPage() {
         });
       }
       
-      setEditingId(null);
+      setShowModal(false);
+      setEditingData(null);
+      fetchCategories();
     } catch (error) {
       console.error('Error saving data:', error);
     }
@@ -166,83 +175,57 @@ if (loading || permissionsLoading) {
             </div>
             
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
+              <table style={{border: '1px solid #ddd', borderCollapse: 'collapse', width: '100%'}}>
                 <thead>
                   <tr className="bg-gray-50">
-                    <th className="border border-gray-200 px-4 py-3 text-left font-semibold text-gray-700">
+                    <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>
                       Kategori Biaya
                     </th>
-                    <th className="border border-gray-200 px-4 py-3 text-center font-semibold text-gray-700">Januari</th>
-                    <th className="border border-gray-200 px-4 py-3 text-center font-semibold text-gray-700">Februari</th>
-                    <th className="border border-gray-200 px-4 py-3 text-center font-semibold text-gray-700">Maret</th>
-                    <th className="border border-gray-200 px-4 py-3 text-center font-semibold text-gray-700">April</th>
-                    <th className="border border-gray-200 px-4 py-3 text-center font-semibold text-gray-700">Mei</th>
-                    <th className="border border-gray-200 px-4 py-3 text-center font-semibold text-gray-700">Juni</th>
-                    <th className="border border-gray-200 px-4 py-3 text-center font-semibold text-gray-700">Juli</th>
-                    <th className="border border-gray-200 px-4 py-3 text-center font-semibold text-gray-700">Agustus</th>
-                    <th className="border border-gray-200 px-4 py-3 text-center font-semibold text-gray-700">September</th>
-                    <th className="border border-gray-200 px-4 py-3 text-center font-semibold text-gray-700">Oktober</th>
-                    <th className="border border-gray-200 px-4 py-3 text-center font-semibold text-gray-700">November</th>
-                    <th className="border border-gray-200 px-4 py-3 text-center font-semibold text-gray-700">Desember</th>
-                    <th className="border border-gray-200 px-4 py-3 text-center font-semibold text-gray-700">Action</th>
+                    <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Jan</th>
+                    <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Feb</th>
+                    <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Mar</th>
+                    <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Apr</th>
+                    <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Mei</th>
+                    <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Jun</th>
+                    <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Jul</th>
+                    <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Agu</th>
+                    <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Sep</th>
+                    <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Okt</th>
+                    <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Nov</th>
+                    <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Des</th>
+                    <th style={{textAlign: 'center', border: '1px solid #ddd', padding: '8px'}}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {Array.isArray(cashCostData) && cashCostData.map((item) => (
                     <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="border border-gray-200 px-4 py-3">
+                      <td style={{border: '1px solid #ddd', padding: '8px'}}>
                         {item.kategori_biaya}
                       </td>
                       {['januari', 'februari', 'maret', 'april', 'mei', 'juni', 'juli', 'agustus', 'september', 'oktober', 'november', 'desember'].map(month => (
-                        <td key={month} className="border border-gray-200 px-4 py-3 text-center">
-                          {editingId === item.id ? (
-                            <input
-                              type="number"
-                              value={item[month as keyof CashCostData] as number}
-                              onChange={(e) => handleInputChange(item.id!, month as keyof CashCostData, e.target.value)}
-                              className="w-20 px-2 py-1 border rounded text-center"
-                            />
-                          ) : (
-                            (item[month as keyof CashCostData] as number).toLocaleString()
-                          )}
+                        <td key={month} style={{border: '1px solid #ddd', padding: '8px'}}>
+                          {(item[month as keyof CashCostData] as number).toLocaleString('id-ID')}
                         </td>
                       ))}
-                      <td className="border border-gray-200 px-4 py-3 text-center">
-                        {editingId === item.id ? (
-                          <div className="flex gap-2 justify-center">
+                      <td style={{border: '1px solid #ddd', padding: '8px'}}>
+                        <div className="flex gap-1 justify-center">
+                          {canEdit && (
                             <button
-                              onClick={() => handleSave(item.id!)}
-                              className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm cursor-pointer"
+                              onClick={() => handleEdit(item)}
+                              className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs cursor-pointer"
                             >
-                              Simpan
+                              Edit
                             </button>
+                          )}
+                          {canDelete && (
                             <button
-                              onClick={() => setEditingId(null)}
-                              className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm cursor-pointer"
+                              onClick={() => handleDelete(item.id!)}
+                              className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs cursor-pointer"
                             >
-                              Batal
+                              Delete
                             </button>
-                          </div>
-                        ) : (
-                          <div className="flex gap-2 justify-center">
-                            {canEdit && (
-                              <button
-                                onClick={() => setEditingId(item.id!)}
-                                className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm cursor-pointer"
-                              >
-                                Edit
-                              </button>
-                            )}
-                            {canDelete && (
-                              <button
-                                onClick={() => handleDelete(item.id!)}
-                                className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm cursor-pointer"
-                              >
-                                Hapus
-                              </button>
-                            )}
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -259,6 +242,47 @@ if (loading || permissionsLoading) {
           </div>
         </div>
       </div>
+
+      {/* Modal Edit */}
+      {showModal && editingData && (
+        <div className="fixed inset-0 bg-white/30 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+            <div className="bg-blue-600 px-6 py-4 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-white">Edit Data - {editingData.kategori_biaya}</h3>
+              <button onClick={() => { setShowModal(false); setEditingData(null); }} className="text-white hover:text-gray-200 text-2xl cursor-pointer">×</button>
+            </div>
+            <div className="p-6 overflow-y-auto" style={{maxHeight: 'calc(90vh - 140px)'}}>
+              <div className="grid grid-cols-3 gap-4">
+                {['januari', 'februari', 'maret', 'april', 'mei', 'juni', 'juli', 'agustus', 'september', 'oktober', 'november', 'desember'].map(month => (
+                  <div key={month}>
+                    <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">{month}</label>
+                    <input
+                      type="number"
+                      value={editingData[month as keyof CashCostData] as number}
+                      onChange={(e) => handleModalInputChange(month as keyof CashCostData, e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="bg-gray-50 px-6 py-4 flex justify-end gap-2">
+              <button
+                onClick={() => { setShowModal(false); setEditingData(null); }}
+                className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded cursor-pointer"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
