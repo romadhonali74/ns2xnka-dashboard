@@ -12,23 +12,23 @@ A high-performance, secure financial monitoring dashboard engineered to manage c
 ## ✨ Key Features
 
 - **Complex Data Management:** Engineered to handle and visualize financial data with high precision.
-- [cite_start]**Granular Security:** Implemented Row Level Security (RLS) and custom SQL user management scripts to ensure data privacy.
-- [cite_start]**Dynamic Reporting:** Features comprehensive financial reporting modules, including Cash Cost Reports and Finance table adjustments.
-- [cite_start]**Robust Infrastructure:** Includes migration guides and example CRUD usage for developer scalability.
+- **Granular Security:** Implemented Row Level Security (RLS) and custom SQL user management scripts to ensure data privacy.
+- **Dynamic Reporting:** Features comprehensive financial reporting modules, including Cash Cost Reports and Finance table adjustments.
+- **Robust Infrastructure:** Includes migration guides and example CRUD usage for developer scalability.
 
 ## 🛠 Project Structure Highlights
 
-- [cite_start]`/src/app`: Modern Next.js App Router architecture.
-- [cite_start]`/supabase`: Configuration for database schemas and edge functions.
-- [cite_start]`/sql`: Custom scripts for advanced user management and group privileges.
+- `/src/app`: Modern Next.js App Router architecture.
+- `/supabase`: Configuration for database schemas and edge functions.
+- `/sql`: Custom scripts for advanced user management and group privileges.
 
 ## 📁 Folder Descriptions
 
-- .vscode: Contains workspace-specific configurations to ensure consistent coding standards and debugging settings within the team.
-- public: Stores static assets such as images, icons, and fonts that are served directly to the browser.
-- sql: A critical directory containing custom PostgreSQL scripts for advanced user management, group privileges, and database schema definitions.
-- src/app: The core of the application built using the Next.js App Router, managing all routing, layouts, and page-specific logic.
-- supabase: Centralized configuration for Supabase integration, including migration files, seed data, and Row Level Security (RLS) policies.
+- `.vscode`: Contains workspace-specific configurations to ensure consistent coding standards and debugging settings within the team.
+- `public`: Stores static assets such as images, icons, and fonts that are served directly to the browser.
+- `sql`: A critical directory containing custom PostgreSQL scripts for advanced user management, group privileges, and database schema definitions.
+- `src/app`: The core of the application built using the Next.js App Router, managing all routing, layouts, and page-specific logic.
+- `supabase`: Centralized configuration for Supabase integration, including migration files, seed data, and Row Level Security (RLS) policies.
 
 ## 📖 Getting Started
 
