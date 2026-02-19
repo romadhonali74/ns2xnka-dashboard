@@ -27,3 +27,11 @@ A high-performance, secure financial monitoring dashboard engineered to manage c
 1. **Clone the repository:**
    ```bash
    git clone [https://github.com/romadhonali74/ns2xnka-dashboard.git](https://github.com/romadhonali74/ns2xnka-dashboard.git)
+2. Install dependencies:
+   ```bash
+   npm install
+3. Setup Environment Variables:
+   Create a .env.local file with your Supabase credentials.
+4. Run the development server:
+   ```bash
+   npm run dev
