@@ -22,6 +22,14 @@ A high-performance, secure financial monitoring dashboard engineered to manage c
 - [cite_start]`/supabase`: Configuration for database schemas and edge functions.
 - [cite_start]`/sql`: Custom scripts for advanced user management and group privileges.
 
+## 📁 Folder Descriptions
+
+- .vscode: Contains workspace-specific configurations to ensure consistent coding standards and debugging settings within the team.
+- public: Stores static assets such as images, icons, and fonts that are served directly to the browser.
+- sql: A critical directory containing custom PostgreSQL scripts for advanced user management, group privileges, and database schema definitions.
+- src/app: The core of the application built using the Next.js App Router, managing all routing, layouts, and page-specific logic.
+- supabase: Centralized configuration for Supabase integration, including migration files, seed data, and Row Level Security (RLS) policies.
+
 ## 📖 Getting Started
 
 1. **Clone the repository:**
