@@ -158,7 +158,7 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
           </div>
         </div>
       )}
-      <div className={`${isCollapsed ? 'w-16' : 'w-64'} bg-white shadow-sm min-h-screen transition-all duration-300 relative cursor-auto`}>
+      <div className={`${isCollapsed ? 'w-16' : 'w-64'} bg-white shadow-sm min-h-screen transition-all duration-300 relative cursor-auto sticky top-0 self-start`}>
         <button onClick={() => setIsCollapsed(!isCollapsed)} className="absolute -right-3 top-6 bg-white border rounded-full p-1 shadow-md z-10 group cursor-pointer">
           {isCollapsed ? <Menu className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </button>
