@@ -1,1 +1,45 @@
-# dashboard
+# Dashboard Monitoring NKA (Nusa Karya Arindo)
+
+A high-performance, secure financial monitoring dashboard engineered to manage complex maritime and financial data. Built with a modern tech stack to ensure scalability, data integrity, and real-time insights.
+
+## 🚀 Tech Stack
+
+- **Frontend:** Next.js (App Router), Tailwind CSS
+- **Backend/Database:** Supabase (PostgreSQL)
+- **Authentication:** Supabase Auth with Role-Based Access Control (RBAC)
+- **Deployment:** Vercel
+
+## ✨ Key Features
+
+- **Complex Data Management:** Engineered to handle and visualize financial data with high precision.
+- **Granular Security:** Implemented Row Level Security (RLS) and custom SQL user management scripts to ensure data privacy.
+- **Dynamic Reporting:** Features comprehensive financial reporting modules, including Cash Cost Reports and Finance table adjustments.
+- **Robust Infrastructure:** Includes migration guides and example CRUD usage for developer scalability.
+
+## 🛠 Project Structure Highlights
+
+- `/src/app`: Modern Next.js App Router architecture.
+- `/supabase`: Configuration for database schemas and edge functions.
+- `/sql`: Custom scripts for advanced user management and group privileges.
+
+## 📁 Folder Descriptions
+
+- `.vscode`: Contains workspace-specific configurations to ensure consistent coding standards and debugging settings within the team.
+- `public`: Stores static assets such as images, icons, and fonts that are served directly to the browser.
+- `sql`: A critical directory containing custom PostgreSQL scripts for advanced user management, group privileges, and database schema definitions.
+- `src/app`: The core of the application built using the Next.js App Router, managing all routing, layouts, and page-specific logic.
+- `supabase`: Centralized configuration for Supabase integration, including migration files, seed data, and Row Level Security (RLS) policies.
+
+## 📖 Getting Started
+
+1. **Clone the repository:**
+   ```bash
+   git clone [https://github.com/romadhonali74/ns2xnka-dashboard.git](https://github.com/romadhonali74/ns2xnka-dashboard.git)
+2. Install dependencies:
+   ```bash
+   npm install
+3. Setup Environment Variables:
+   Create a .env.local file with your Supabase credentials.
+4. Run the development server:
+   ```bash
+   npm run dev
