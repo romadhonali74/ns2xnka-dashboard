@@ -9,7 +9,7 @@ const supabase = createClient(
 export async function POST(request: Request) {
   try {
     const data = await request.json();
-    const { month, year, cat1, cat6, cat9, cat10, cat11, cat18, cat19, cat20, cat21, cat22, cat23, cat24, cat8, cat12, cat13, cat25, cat14, cat26 } = data;
+    const { month, year, cat1, cat6, cat9, cat10, cat11, cat18, cat19, cat20, cat21, cat22, cat23, cat24, cat8, cat12, cat13, cat25, cat14, cat26, cat29 } = data;
 
     const toNumber = (val: any) => val === '' || val === null || val === undefined ? null : Number(val);
 
@@ -50,7 +50,8 @@ export async function POST(request: Request) {
       { category_id: 13, amount: toNumber(cat13) ?? getExistingAmount(13), year, month },
       { category_id: 25, amount: toNumber(cat25) ?? getExistingAmount(25), year, month },
       { category_id: 14, amount: toNumber(cat14) ?? getExistingAmount(14), year, month },
-      { category_id: 26, amount: toNumber(cat26) ?? getExistingAmount(26), year, month }
+      { category_id: 26, amount: toNumber(cat26) ?? getExistingAmount(26), year, month },
+      { category_id: 29, amount: toNumber(cat29) ?? getExistingAmount(29), year, month }
     ];
 
     const { error: monthlyError } = await supabase

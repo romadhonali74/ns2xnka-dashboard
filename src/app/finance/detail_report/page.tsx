@@ -12,6 +12,7 @@ interface FinanceCategory {
   sort_order: number;
   is_active: boolean;
   is_tittle: boolean;
+  is_summary: boolean;
 }
 
 interface MonthlyData {
@@ -30,17 +31,28 @@ interface FinanceSummary {
   month: number | null;
 }
 
-interface SummaryItem {
-  id: number;
-  name: string;
+interface FinanceSummaryView {
+  year: number;
+  month: number;
+  biaya_produksi: number;
+  hpp: number;
+  laba_kotor: number;
+  biaya_usaha: number;
+  laba_usaha: number;
+  beban_pendapatan_lain: number;
+  laba_sebelum_pajak: number;
+  eat: number;
+  ebitda: number;
 }
+
+
 
 export default function DetailReportPage() {
   const { canCreate, canEdit, canDelete } = useCrudPermissions('finance');
   const [categories, setCategories] = useState<FinanceCategory[]>([]);
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
   const [financeSummary, setFinanceSummary] = useState<FinanceSummary[]>([]);
-  const [summaryItems, setSummaryItems] = useState<SummaryItem[]>([]);
+  const [summaryView, setSummaryView] = useState<FinanceSummaryView | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(0);
@@ -56,11 +68,11 @@ export default function DetailReportPage() {
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear(),
     cat1: '', cat6: '', cat9: '', cat10: '', cat11: '', cat18: '', cat19: '', cat20: '', cat21: '', cat22: '', cat23: '',
-    cat24: '', cat8: '', cat12: '', cat13: '', cat25: '', cat14: '', cat26: ''
+    cat24: '', cat8: '', cat12: '', cat13: '', cat25: '', cat14: '', cat26: '', cat29: ''
   });
 
   const formatCurrency = (amount: number) => {
-    return `Rp ${amount.toLocaleString('id-ID').replace(/,/g, '.')}`;
+    return `Rp ${Math.floor(amount).toLocaleString('id-ID').replace(/,/g, '.')}`;
   };
 
   const getSummaryAmount = (itemName: string) => {
@@ -69,25 +81,10 @@ export default function DetailReportPage() {
   };
 
   useEffect(() => {
-    fetchMasterItems();
-  }, []);
-
-  useEffect(() => {
     fetchCategories();
   }, [selectedMonth, selectedYear]);
 
-  const fetchMasterItems = async () => {
-    try {
-      const response = await fetch('/api/finance-summary-items');
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Summary Items:', data);
-        setSummaryItems(data);
-      }
-    } catch (error) {
-      console.error('Error fetching master items:', error);
-    }
-  };
+
 
   const getAmountForCategory = (categoryId: number) => {
     const data = monthlyData.find(item => item.category_id === categoryId);
@@ -96,9 +93,10 @@ export default function DetailReportPage() {
 
   const fetchCategories = async () => {
     try {
-      const [categoriesResponse, monthlyDataResponse] = await Promise.all([
+      const [categoriesResponse, monthlyDataResponse, summaryViewResponse] = await Promise.all([
         fetch('/api/finance-categories'),
-        fetch(`/api/finance-monthly-data?year=${selectedYear}${selectedMonth === 0 ? '' : `&month=${selectedMonth}`}`)
+        fetch(`/api/finance-monthly-data?year=${selectedYear}${selectedMonth === 0 ? '' : `&month=${selectedMonth}`}`),
+        fetch(`/api/finance-summary-view?year=${selectedYear}${selectedMonth === 0 ? '' : `&month=${selectedMonth}`}`)
       ]);
       
       const categoriesData = await categoriesResponse.json();
@@ -106,6 +104,11 @@ export default function DetailReportPage() {
       
       setCategories(categoriesData);
       setMonthlyData(monthlyDataResult);
+      
+      if (summaryViewResponse.ok) {
+        const summaryViewData = await summaryViewResponse.json();
+        setSummaryView(summaryViewData[0] || null);
+      }
       
       // Fetch summary data separately with error handling
       try {
@@ -278,7 +281,7 @@ export default function DetailReportPage() {
                       month: new Date().getMonth() + 1,
                       year: new Date().getFullYear(),
                       cat1: '', cat6: '', cat9: '', cat10: '', cat11: '', cat18: '', cat19: '', cat20: '', cat21: '', cat22: '', cat23: '',
-                      cat24: '', cat8: '', cat12: '', cat13: '', cat25: '', cat14: '', cat26: ''
+                      cat24: '', cat8: '', cat12: '', cat13: '', cat25: '', cat14: '', cat26: '', cat29: ''
                     });
                     setShowModal(true);
                   }}
@@ -421,15 +424,19 @@ export default function DetailReportPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {summaryItems.filter(item => item.id >= 1 && item.id <= 7).map((item) => {
-                      const amount = getAmountForCategory(item.id);
-                      return (
-                        <tr key={item.id}>
-                          <td className="border border-gray-300 px-3 py-2 text-sm">{item.name}</td>
-                          <td className="border border-gray-300 px-3 py-2 text-right text-sm">{formatCurrency(amount)}</td>
-                        </tr>
-                      );
-                    })}
+                    {summaryView && [
+                      { label: 'Biaya Produksi', value: summaryView.biaya_produksi },
+                      { label: 'Harga Pokok Penjualan', value: summaryView.hpp },
+                      { label: 'Laba Kotor', value: summaryView.laba_kotor },
+                      { label: 'Biaya Usaha', value: summaryView.biaya_usaha },
+                      { label: 'Laba Usaha', value: summaryView.laba_usaha },
+                      { label: 'Beban & Pendapatan Lain', value: summaryView.beban_pendapatan_lain }
+                    ].map((item, idx) => (
+                      <tr key={idx}>
+                        <td className="border border-gray-300 px-3 py-2 text-sm">{item.label}</td>
+                        <td className="border border-gray-300 px-3 py-2 text-right text-sm">{formatCurrency(item.value)}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -444,15 +451,16 @@ export default function DetailReportPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {summaryItems.filter(item => item.id >= 8 && item.id <= 11).map((item) => {
-                      const amount = getAmountForCategory(item.id);
-                      return (
-                        <tr key={item.id}>
-                          <td className="border border-gray-300 px-3 py-2 text-sm">{item.name}</td>
-                          <td className="border border-gray-300 px-3 py-2 text-right text-sm">{formatCurrency(amount)}</td>
-                        </tr>
-                      );
-                    })}
+                    {summaryView && [
+                      { label: 'Laba Sebelum Pajak', value: summaryView.laba_sebelum_pajak },
+                      { label: 'EAT', value: summaryView.eat },
+                      { label: 'EBITDA', value: summaryView.ebitda }
+                    ].map((item, idx) => (
+                      <tr key={idx}>
+                        <td className="border border-gray-300 px-3 py-2 text-sm">{item.label}</td>
+                        <td className="border border-gray-300 px-3 py-2 text-right text-sm">{formatCurrency(item.value)}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -627,6 +635,10 @@ export default function DetailReportPage() {
                       <div>
                         <label className="block text-sm font-medium text-gray-600 mb-2">Pendapatan dan Beban Lain-lain</label>
                         <input type="text" value={formData.cat26} onChange={(e) => setFormData({...formData, cat26: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-600 mb-2">Pajak</label>
+                        <input type="text" value={formData.cat29} onChange={(e) => setFormData({...formData, cat29: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" />
                       </div>
                     </div>
                   </div>

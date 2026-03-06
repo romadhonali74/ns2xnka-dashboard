@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, TrendingUp, AlertTriangle, LogOut, Calendar, ShieldCheck, ChevronDown, ChevronRight, FileText, BarChart3, Settings, Users, ChevronLeft, Menu, Ship, Container, PackageSearch, FolderKanban, DollarSign, Receipt } from "lucide-react";
+import { Home, TrendingUp, AlertTriangle, LogOut, Calendar, ShieldCheck, ChevronDown, ChevronRight, FileText, BarChart3, Settings, Users, ChevronLeft, Menu, Ship, Container, PackageSearch, FolderKanban, DollarSign, Receipt, TrendingUpIcon } from "lucide-react";
 import { Button } from "./ui/button";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "../lib/supabase";
@@ -49,6 +49,7 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
     if (pathname === "/finance") return "finance";
     if (pathname === "/finance/cash_cost_report") return "finance-cash-cost";
     if (pathname === "/finance/detail_report") return "finance-detail";
+    if (pathname === "/sales_marketing") return "sales-marketing";
     if (pathname === "/user_management/details") return "user-details";
     if (pathname === "/user_management/privileges") return "user-privileges";
     if (pathname === "/users") return "users";
@@ -97,6 +98,7 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
     else if (tab === "finance") setShowFinanceSubmenu(!showFinanceSubmenu);
     else if (tab === "finance-cash-cost") router.push("/finance/cash_cost_report");
     else if (tab === "finance-detail") router.push("/finance/detail_report");
+    else if (tab === "sales-marketing") router.push("/sales_marketing");
     else if (tab === "user_management") setShowUserMgmtSubmenu(!showUserMgmtSubmenu);
     else if (tab === "user-details") router.push("/user_management/details");
     else if (tab === "user-privileges") router.push("/user_management/privileges");
@@ -112,6 +114,7 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
     { id: "quality_control", label: "Quality Control", icon: ShieldCheck },
     { id: "mining-reports", label: "Mining Reports", icon: BarChart3 },
     { id: "finance", label: "Finance", icon: DollarSign },
+    { id: "sales-marketing", label: "Sales & Marketing", icon: TrendingUpIcon },
     { id: "user_management", label: "User Management", icon: Settings },
     { id: "logout", label: "Log out", icon: LogOut },
   ];
