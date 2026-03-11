@@ -707,9 +707,10 @@ export default function Dashboard() {
           }
         }
       `}</style>
-      <div className="min-h-screen bg-[#f1f2f7] flex">
+      <div className="flex h-screen overflow-hidden bg-[#f1f2f7]">
         <Sidebar onTabChange={handleTabChange} />
-        <div className="flex-1 p-6 relative">
+        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+          <div className="p-6 w-full">
           {/* {pageLoading && (
             <div className="absolute inset-0 flex items-start justify-center pt-16 z-50">
               <div className="bg-white rounded-lg shadow-xl p-6 border border-gray-300">
@@ -1060,6 +1061,7 @@ export default function Dashboard() {
               </div>
             </CardContent>
           </Card>
+          </div>
         </div>
       </div>
     </AuthGuard>

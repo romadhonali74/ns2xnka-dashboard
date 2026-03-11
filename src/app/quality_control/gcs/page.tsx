@@ -103,7 +103,8 @@ export default function StylishCRUDTable() {
           value={formatDecimal(value)}
           onChange={(e) => {
             const val = e.target.value;
-            if (/^[0-9]*[,]?[0-9]*$/.test(val)) {
+            const regex = /^[0-9]*[,]?[0-9]*$/;
+            if (regex.test(val)) {
               onChange(parseDecimal(val));
             }
           }}
@@ -353,10 +354,9 @@ export default function StylishCRUDTable() {
 
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#f1f2f7" }}>
-      <div className="flex">
-        {/* Sidebar Component */}
-        <Sidebar onTabChange={handleTabChange} />
+    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: "#f1f2f7" }}>
+      <Sidebar onTabChange={handleTabChange} />
+      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         <div className="crud-container">
             <div className="crud-header">
                     <h2>Geological Control System</h2>
@@ -455,92 +455,6 @@ export default function StylishCRUDTable() {
                         Clear
                       </button>
                     </div>
-                    {/* <div style={{position: 'relative'}}>
-                      <button
-                        onClick={() => setShowSortMenu(!showSortMenu)}
-                        style={{
-                          padding: '8px 12px',
-                          border: '1px solid #ddd',
-                          borderRadius: '4px',
-                          backgroundColor: '#ffffff',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '5px',
-                          transition: 'all 0.2s ease',
-                          transform: showSortMenu ? 'scale(1.05)' : 'scale(1)'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = '#f5f5f5';
-                          e.currentTarget.style.transform = 'scale(1.05)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = '#ffffff';
-                          e.currentTarget.style.transform = showSortMenu ? 'scale(1.05)' : 'scale(1)';
-                        }}
-                      >
-                        <Filter size={16} style={{transition: 'transform 0.2s ease', transform: showSortMenu ? 'rotate(180deg)' : 'rotate(0deg)'}} />
-                      </button>
-                      {showSortMenu && (
-                        <div style={{
-                          position: 'absolute',
-                          top: '100%',
-                          left: 0,
-                          backgroundColor: '#ffffff',
-                          border: '1px solid #ddd',
-                          borderRadius: '4px',
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                          zIndex: 1000,
-                          minWidth: '150px'
-                        }}>
-                          <div
-                            onClick={() => {
-                              setSortBy('Kode_Sampel');
-                              let sorted = [...filteredUsers];
-                              sorted.sort((a, b) => a.Kode_Sampel.localeCompare(b.Kode_Sampel));
-                              setFilteredUsers(sorted);
-                              setShowSortMenu(false);
-                            }}
-                            style={{
-                              padding: '8px 12px',
-                              cursor: 'pointer',
-                              borderBottom: '1px solid #eee',
-                              transition: 'background-color 0.2s ease'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = '#f0f0f0';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = 'transparent';
-                            }}
-                          >
-                            Kode Sampel
-                          </div>
-                          <div
-                            onClick={() => {
-                              setSortBy('Analis');
-                              let sorted = [...filteredUsers];
-                              sorted.sort((a, b) => String(a.Analis).localeCompare(String(b.Analis)));
-                              setFilteredUsers(sorted);
-                              setShowSortMenu(false);
-                            }}
-                            style={{
-                              padding: '8px 12px',
-                              cursor: 'pointer',
-                              transition: 'background-color 0.2s ease'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = '#f0f0f0';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = 'transparent';
-                            }}
-                          >
-                            Analis
-                          </div>
-                        </div>
-                      )}
-                    </div> */}
                   </div>
                   <button
                     onClick={exportToExcel}
@@ -871,5 +785,5 @@ export default function StylishCRUDTable() {
             </div>
         </div>
       </div>
-    );
+  );
 }

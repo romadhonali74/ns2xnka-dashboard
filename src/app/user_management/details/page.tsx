@@ -171,10 +171,11 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#f1f2f7" }}>
-      <div className="flex">
+    <>
+      <div className="flex h-screen overflow-hidden" style={{ backgroundColor: "#f1f2f7" }}>
         <Sidebar />
-        <div className="flex-1 p-8">
+        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+          <div className="p-8 w-full">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-[#273240]">Users Management</h1>
             <button onClick={handleAdd} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 cursor-pointer">+ Add User</button>
@@ -240,6 +241,7 @@ export default function UsersPage() {
                 ))}
               </tbody>
             </table>
+          </div>
           </div>
         </div>
       </div>
@@ -323,6 +325,6 @@ export default function UsersPage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

@@ -23,10 +23,12 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  overflow-x: hidden;
 }
 
 html {
   color-scheme: light;
+  overflow-x: hidden;
 }
 
 /* Custom cursor for all buttons and clickable elements */

@@ -380,9 +380,9 @@ export default function ProductDetailsTable() {
   };
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#f1f2f7" }}>
-      <div className="flex">
-        <Sidebar />
+    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: "#f1f2f7" }}>
+      <Sidebar />
+      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         <div className="crud-container">
             <div className="crud-header">
                     <h2>Product Details</h2>
@@ -814,7 +814,7 @@ export default function ProductDetailsTable() {
                     </div>
                 )}
             </div>
+        </div>
       </div>
-      </div>
-      );
+  );
 }

@@ -437,10 +437,9 @@ export default function StylishCRUDTable() {
 
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#f1f2f7" }}>
-      <div className="flex">
-        {/* Sidebar Component */}
-        <Sidebar onTabChange={handleTabChange} />
+    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: "#f1f2f7" }}>
+      <Sidebar onTabChange={handleTabChange} />
+      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         <div className="crud-container">
             <div className="crud-header">
                     <h2>ETO to EFO</h2>
@@ -945,7 +944,7 @@ export default function StylishCRUDTable() {
                     </div>
                 )}
             </div>
+        </div>
       </div>
-      </div>
-      );
+  );
 }

@@ -161,11 +161,14 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
           </div>
         </div>
       )}
-      <div className={`${isCollapsed ? 'w-16' : 'w-64'} bg-white shadow-sm min-h-screen transition-all duration-300 relative cursor-auto sticky top-0 self-start`}>
-        <button onClick={() => setIsCollapsed(!isCollapsed)} className="absolute -right-3 top-6 bg-white border rounded-full p-1 shadow-md z-10 group cursor-pointer">
-          {isCollapsed ? <Menu className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-        </button>
+      <div className={`${isCollapsed ? 'w-16' : 'w-64'} flex-shrink-0 bg-white shadow-sm h-full overflow-y-auto transition-all duration-300 relative`}>
         <div className={`${isCollapsed ? 'p-2' : 'p-6'}`}>
+          <button 
+            onClick={() => setIsCollapsed(!isCollapsed)} 
+            className={`${isCollapsed ? 'w-full mb-4' : 'absolute right-2 top-6'} bg-white border rounded-full p-1 shadow-md hover:shadow-lg z-10 group cursor-pointer transition-all duration-300`}
+          >
+            {isCollapsed ? <Menu className="w-4 h-4 mx-auto" /> : <ChevronLeft className="w-4 h-4" />}
+          </button>
           {!isCollapsed && <h2 className="text-[#273240] font-semibold mb-6">Menu</h2>}
           <nav className="space-y-2">
             {visibleMenuItems.map((item) => {
