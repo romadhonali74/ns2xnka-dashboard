@@ -28,10 +28,8 @@ export default function SalesMarketingPage() {
       isDragging.current = true;
       startX.current = e.clientX;
       scrollLeftRef.current = el.scrollLeft;
-      el.style.cursor = 'grabbing';
-      el.style.userSelect = 'none';
     };
-    const onUp = () => { isDragging.current = false; el.style.cursor = 'grab'; el.style.userSelect = ''; };
+    const onUp = () => { isDragging.current = false; };
     const onMove = (e: MouseEvent) => {
       if (!isDragging.current) return;
       el.scrollLeft = scrollLeftRef.current - (e.clientX - startX.current);
@@ -113,7 +111,7 @@ export default function SalesMarketingPage() {
               <button onClick={() => setTablePage(1)} className={`px-4 py-1.5 rounded-lg text-sm font-medium cursor-pointer ${tablePage === 1 ? 'bg-blue-600 text-white' : 'border border-gray-300 text-gray-600 hover:bg-gray-50'}`}>Jan - Jun</button>
               <button onClick={() => setTablePage(2)} className={`px-4 py-1.5 rounded-lg text-sm font-medium cursor-pointer ${tablePage === 2 ? 'bg-blue-600 text-white' : 'border border-gray-300 text-gray-600 hover:bg-gray-50'}`}>Jul - Des</button>
             </div>
-            <div ref={scrollRef} className="overflow-x-auto" style={{cursor:'grab'}}>
+            <div ref={scrollRef} className="overflow-x-auto">
               <table style={{borderCollapse:'separate', borderSpacing:0, width:'100%'}}>
                 <thead>
                   <tr style={{backgroundColor:'#f9fafb'}}>

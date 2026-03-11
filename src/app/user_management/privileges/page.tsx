@@ -119,7 +119,32 @@ export default function GroupPrivilegePage() {
   const handleSubmit = async () => {
     setSaving(true);
     try {
+      // Handle removed permissions (can_view toggled OFF)
+      for (const orig of originalPermissions) {
+        const stillExists = permissions.find(p => p.id === orig.id);
+        if (!stillExists && orig.id !== 0) {
+          await fetch('/api/bureau-permissions', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: orig.id })
+          });
+        }
+      }
+
+      // Handle new permissions (can_view toggled ON, id === 0)
       for (const perm of permissions) {
+        if (perm.id === 0) {
+          await fetch('/api/bureau-permissions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bureau_id: perm.bureau_id, menu_id: perm.menu_id, can_view: true })
+          });
+        }
+      }
+
+      // Handle CRUD changes on existing permissions
+      for (const perm of permissions) {
+        if (perm.id === 0) continue;
         const original = originalPermissions.find(p => p.id === perm.id);
         if (original && (original.can_create !== perm.can_create || original.can_edit !== perm.can_edit || original.can_delete !== perm.can_delete)) {
           await fetch('/api/bureau-permissions', {
@@ -263,7 +288,7 @@ export default function GroupPrivilegePage() {
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {permissions.filter(p => p.can_view && menus.find(m => m.id === p.menu_id)).map(perm => (
-                    <tr key={perm.id} className="hover:bg-gray-50">
+                    <tr key={`${perm.bureau_id}-${perm.menu_id}`} className="hover:bg-gray-50">
                       <td className="px-6 py-4 text-sm font-medium text-gray-900 sticky left-0 bg-white">
                         {bureaus.find(b => b.id === perm.bureau_id)?.name}
                       </td>
