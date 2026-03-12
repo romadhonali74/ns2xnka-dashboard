@@ -16,6 +16,7 @@ export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [isAddMode, setIsAddMode] = useState(false);
@@ -90,8 +91,19 @@ export default function UsersPage() {
   };
 
   const handleSubmit = async () => {
+    setSubmitting(true);
     try {
       if (isAddMode) {
+        console.log('Creating user with data:', {
+          email: formData.email,
+          app_metadata: { 
+            role: formData.app_role, 
+            bureau: formData.app_bureau,
+            is_super_admin: formData.is_super_admin 
+          },
+          user_metadata: { role: formData.user_role, bureau: formData.user_bureau }
+        });
+
         const response = await fetch('/api/users', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -99,16 +111,37 @@ export default function UsersPage() {
             email: formData.email,
             password: formData.password,
             email_confirm: formData.email_confirm,
-            app_metadata: { role: formData.app_role, bureau: formData.app_bureau },
+            app_metadata: { 
+              role: formData.app_role, 
+              bureau: formData.app_bureau,
+              is_super_admin: formData.is_super_admin 
+            },
             user_metadata: { role: formData.user_role, bureau: formData.user_bureau }
           })
         });
+
+        const data = await response.json();
+        console.log('Create user response:', data);
+
         if (response.ok) {
           setShowModal(false);
           fetchUsers();
+        } else {
+          alert(data.error || 'Failed to create user');
         }
       } else {
         if (!editingUser) return;
+
+        console.log('Updating user with data:', {
+          id: editingUser.id,
+          app_metadata: { 
+            role: formData.app_role, 
+            bureau: formData.app_bureau, 
+            is_super_admin: formData.is_super_admin 
+          },
+          user_metadata: { role: formData.user_role, bureau: formData.user_bureau }
+        });
+
         const response = await fetch('/api/users', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -118,14 +151,23 @@ export default function UsersPage() {
             user_metadata: { role: formData.user_role, bureau: formData.user_bureau }
           })
         });
+
+        const data = await response.json();
+        console.log('Update user response:', data);
+
         if (response.ok) {
           setShowModal(false);
           setEditingUser(null);
           fetchUsers();
+        } else {
+          alert(data.error || 'Failed to update user');
         }
       }
     } catch (error) {
       console.error('Error submitting form:', error);
+      alert('An error occurred. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -247,14 +289,14 @@ export default function UsersPage() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-white/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-8 py-6">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl my-8">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-8 py-6 rounded-t-2xl">
               <h2 className="text-2xl font-bold text-white">{isAddMode ? 'Add User' : 'Edit User'}</h2>
               <p className="text-blue-100 text-sm mt-1">{isAddMode ? 'Create new user account' : editingUser?.email}</p>
             </div>
 
-            <div className="p-8 space-y-4">
+            <div className="p-8 space-y-4 max-h-[60vh] overflow-y-auto">
               {isAddMode && (
                 <>
                   <div>
@@ -318,9 +360,27 @@ export default function UsersPage() {
               </div>
             </div>
 
-            <div className="bg-gray-50 px-8 py-5 flex justify-between items-center border-t">
-              <button onClick={() => setShowModal(false)} className="px-6 py-2.5 border-2 border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-100">Cancel</button>
-              <button onClick={handleSubmit} className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 shadow-lg">Save Changes</button>
+            <div className="bg-gray-50 px-8 py-5 flex justify-between items-center border-t rounded-b-2xl">
+              <button 
+                onClick={() => setShowModal(false)} 
+                disabled={submitting}
+                className="px-6 py-2.5 border-2 border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleSubmit} 
+                disabled={submitting}
+                className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {submitting && (
+                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                )}
+                {submitting ? 'Submitting...' : 'Submit'}
+              </button>
             </div>
           </div>
         </div>
