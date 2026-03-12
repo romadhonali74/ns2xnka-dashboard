@@ -23,6 +23,7 @@ export default function SalesMarketingPage() {
   const [chartView, setChartView] = useState<'grid' | 'vertical'>('grid');
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState<PriceData>({});
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; label: string; value: string } | null>(null);
   const [formData, setFormData] = useState({ 
     year: new Date().getFullYear(), 
     month: 1, 
@@ -120,15 +121,12 @@ export default function SalesMarketingPage() {
     return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
-  const getChartData = (kategori: string) => {
+  const getChartDataPeriode = (kategori: string, periode: number) => {
     const values: number[] = [];
     for (let m = 1; m <= 12; m++) {
-      const val1 = priceData[kategori]?.[`${m}_1`];
-      const val2 = priceData[kategori]?.[`${m}_2`];
-      const num1 = val1 && val1 !== '-' ? parseFloat(val1) : null;
-      const num2 = val2 && val2 !== '-' ? parseFloat(val2) : null;
-      const avg = num1 !== null && num2 !== null ? (num1 + num2) / 2 : num1 || num2 || 0;
-      values.push(avg);
+      const val = priceData[kategori]?.[`${m}_${periode}`];
+      const num = val && val !== '-' ? parseFloat(val) : 0;
+      values.push(num);
     }
     return values;
   };
@@ -144,11 +142,78 @@ export default function SalesMarketingPage() {
     return filledMonths;
   };
 
-  const normalizeChartValues = (values: number[]) => {
-    const max = Math.max(...values.filter(v => v > 0));
-    const min = Math.min(...values.filter(v => v > 0));
-    const range = max - min || 1;
-    return values.map(v => v > 0 ? 140 - ((v - min) / range) * 60 : 140);
+  // Fixed scale with yMin support: top=y20, bottom=y150, range=130px
+  const toY = (v: number, yMax: number, yMin: number = 0) => 165 - ((v - yMin) / (yMax - yMin)) * 130;
+
+  const renderChart = (kategori: string, color1: string, color2: string, yMax: number, yMin: number = 0) => {
+    const rawValues1 = getChartDataPeriode(kategori, 1);
+    const rawValues2 = getChartDataPeriode(kategori, 2);
+    const filledMonths = getFilledMonths(kategori);
+    if (filledMonths.length === 0)
+      return <text x="250" y="90" textAnchor="middle" fontSize="14" fill="#9ca3af">Tidak ada data</text>;
+    const displayMonths = filledMonths.length < 3 ? [0, 1, 2] : filledMonths;
+    const xs = displayMonths.map((_, i) => 60 + i * (410 / Math.max(displayMonths.length - 1, 1)));
+    const fv1 = displayMonths.map(m => rawValues1[m]);
+    const fv2 = displayMonths.map(m => rawValues2[m]);
+    const ys1 = fv1.map(v => toY(v, yMax, yMin));
+    const ys2 = fv2.map(v => toY(v, yMax, yMin));
+    const id1 = `grad1-${kategori.replace(' ','-')}`;
+    const id2 = `grad2-${kategori.replace(' ','-')}`;
+    const baseY = 165;
+    const area1 = xs.map((x,i)=>`${x},${ys1[i]}`).join(' ');
+    const area2 = xs.map((x,i)=>`${x},${ys2[i]}`).join(' ');
+    const poly1 = `${xs[0]},${baseY} ${area1} ${xs[xs.length-1]},${baseY}`;
+    const poly2 = `${xs[0]},${baseY} ${area2} ${xs[xs.length-1]},${baseY}`;
+    const yTicks = [0,1,2,3,4].map(i => ({ val: yMax - i * ((yMax - yMin) / 4), y: 35 + i * 32.5 }));
+    return (
+      <>
+        <defs>
+          <linearGradient id={id1} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color1} stopOpacity="0.3" />
+            <stop offset="100%" stopColor={color1} stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id={id2} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color2} stopOpacity="0.3" />
+            <stop offset="100%" stopColor={color2} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        {yTicks.map((tick, i) => (
+          <g key={i}>
+            <line x1="55" x2="480" y1={tick.y} y2={tick.y} stroke="#000" strokeWidth="1" opacity="0.1" />
+            <text x="50" y={tick.y + 4} textAnchor="end" fontSize="9" fill="#9ca3af">
+              {tick.val.toLocaleString('id-ID')}
+            </text>
+          </g>
+        ))}
+        <polygon fill={`url(#${id1})`} points={poly1} />
+        <polygon fill={`url(#${id2})`} points={poly2} />
+        <polyline fill="none" stroke={color1} strokeWidth="2.5" points={xs.map((x,i)=>`${x},${ys1[i]}`).join(' ')}/>
+        <polyline fill="none" stroke={color2} strokeWidth="2.5" points={xs.map((x,i)=>`${x},${ys2[i]}`).join(' ')}/>
+        {xs.map((x,i) => fv1[i] > 0 && (
+          <circle key={`p1-${i}`} cx={x} cy={ys1[i]} r="5" fill={color1} style={{cursor:'pointer'}}
+            onMouseEnter={e => {
+              const rect = (e.target as SVGCircleElement).closest('svg')!.getBoundingClientRect();
+              const scaleX = rect.width / 500; const scaleY = rect.height / 180;
+              setTooltip({ x: rect.left + x * scaleX, y: rect.top + ys1[i] * scaleY, label: `Periode I - ${MONTHS_SHORT[displayMonths[i]]}`, value: fv1[i].toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) });
+            }}
+            onMouseLeave={() => setTooltip(null)}
+          />
+        ))}
+        {xs.map((x,i) => fv2[i] > 0 && (
+          <circle key={`p2-${i}`} cx={x} cy={ys2[i]} r="5" fill={color2} style={{cursor:'pointer'}}
+            onMouseEnter={e => {
+              const rect = (e.target as SVGCircleElement).closest('svg')!.getBoundingClientRect();
+              const scaleX = rect.width / 500; const scaleY = rect.height / 180;
+              setTooltip({ x: rect.left + x * scaleX, y: rect.top + ys2[i] * scaleY, label: `Periode II - ${MONTHS_SHORT[displayMonths[i]]}`, value: fv2[i].toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) });
+            }}
+            onMouseLeave={() => setTooltip(null)}
+          />
+        ))}
+        {displayMonths.map((monthIdx,i) => <text key={i} x={xs[i]} y="185" textAnchor="middle" fontSize="11" fill="#6b7280">{MONTHS_SHORT[monthIdx]}</text>)}
+        <text x="65" y="12" fontSize="10" fill={color1} fontWeight="600">● Periode I</text>
+        <text x="155" y="12" fontSize="10" fill={color2} fontWeight="600">● Periode II</text>
+      </>
+    );
   };
 
   const handleInputChange = (periode: 'periode1' | 'periode2', key: string, value: string) => {
@@ -347,237 +412,16 @@ export default function SalesMarketingPage() {
             <div className="text-center py-12">Loading...</div>
           ) : (
           <div className={chartView === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 gap-6 mb-6' : 'space-y-6 mb-6'}>
-            {/* HMA Chart */}
-            <div className="bg-white rounded-lg shadow-sm p-6 w-full overflow-hidden">
-              <h2 className="text-lg font-semibold text-gray-800 mb-3">HMA</h2>
-              <div className="bg-gray-50 rounded-lg p-3 h-56 w-full overflow-hidden">
-                <svg width="100%" height="100%" viewBox="0 0 500 180" preserveAspectRatio="xMidYMid meet" style={{maxWidth:'100%', display:'block'}}>
-                  {(() => {
-                    const rawValues = getChartData('HMA');
-                    const filledMonths = getFilledMonths('HMA');
-                    if (filledMonths.length === 0) {
-                      return (
-                        <text x="250" y="90" textAnchor="middle" fontSize="14" fill="#9ca3af">
-                          Tidak ada data
-                        </text>
-                      );
-                    }
-                    // If less than 3 months, show first 3 months (Jan-Mar)
-                    const displayMonths = filledMonths.length < 3 ? [0, 1, 2] : filledMonths;
-                    const xs = displayMonths.map((_, i) => 30 + i * (440 / Math.max(displayMonths.length - 1, 1)));
-                    const filledValues = displayMonths.map(m => rawValues[m]);
-                    const ys = normalizeChartValues(filledValues);
-                    const points = xs.map((x, i) => `${x},${ys[i]}`).join(' ');
-                    return (
-                      <>
-                        <polyline fill="none" stroke="#3b82f6" strokeWidth="2.5" points={points}/>
-                        {xs.map((x, i) => {
-                          if (filledValues[i] > 0) {
-                            return <circle key={i} cx={x} cy={ys[i]} r="4" fill="#3b82f6" />;
-                          }
-                          return null;
-                        })}
-                        {displayMonths.map((monthIdx, i) => (
-                          <text key={i} x={xs[i]} y="170" textAnchor="middle" fontSize="11" fill="#6b7280">{MONTHS_SHORT[monthIdx]}</text>
-                        ))}
-                        {xs.map((x, i) => {
-                          if (filledValues[i] > 0) {
-                            return (
-                              <text 
-                                key={`label-${i}`} 
-                                x={x} 
-                                y={ys[i] - 12} 
-                                textAnchor="middle" 
-                                fontSize="10" 
-                                fontWeight="600"
-                                fill="#1e40af"
-                              >
-                                {filledValues[i].toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </text>
-                            );
-                          }
-                          return null;
-                        })}
-                      </>
-                    );
-                  })()}
-                </svg>
+            {([{k:'HMA',yMax:25000,yMin:10000},{k:'PREMIUM',yMax:100,yMin:0},{k:'HPM',yMax:100,yMin:0},{k:'HARGA JUAL',yMax:100,yMin:0}] as {k:string,yMax:number,yMin:number}[]).map(({k,yMax,yMin}) => (
+              <div key={k} className="bg-white rounded-lg shadow-sm p-6 w-full overflow-hidden">
+                <h2 className="text-lg font-semibold text-gray-800 mb-3">{k}</h2>
+                <div className="bg-gray-50 rounded-lg p-3 h-56 w-full overflow-hidden">
+                  <svg width="100%" height="100%" viewBox="0 0 500 195" preserveAspectRatio="xMidYMid meet" style={{maxWidth:'100%',display:'block'}}>
+                    {renderChart(k, '#3b82f6', '#ef4444', yMax, yMin)}
+                  </svg>
+                </div>
               </div>
-            </div>
-
-            {/* PREMIUM Chart */}
-            <div className="bg-white rounded-lg shadow-sm p-6 w-full overflow-hidden">
-              <h2 className="text-lg font-semibold text-gray-800 mb-3">PREMIUM</h2>
-              <div className="bg-gray-50 rounded-lg p-3 h-56 w-full overflow-hidden">
-                <svg width="100%" height="100%" viewBox="0 0 500 180" preserveAspectRatio="xMidYMid meet" style={{maxWidth:'100%', display:'block'}}>
-                  {(() => {
-                    const rawValues = getChartData('PREMIUM');
-                    const filledMonths = getFilledMonths('PREMIUM');
-                    if (filledMonths.length === 0) {
-                      return (
-                        <text x="250" y="90" textAnchor="middle" fontSize="14" fill="#9ca3af">
-                          Tidak ada data
-                        </text>
-                      );
-                    }
-                    // If less than 3 months, show first 3 months (Jan-Mar)
-                    const displayMonths = filledMonths.length < 3 ? [0, 1, 2] : filledMonths;
-                    const xs = displayMonths.map((_, i) => 30 + i * (440 / Math.max(displayMonths.length - 1, 1)));
-                    const filledValues = displayMonths.map(m => rawValues[m]);
-                    const ys = normalizeChartValues(filledValues);
-                    const points = xs.map((x, i) => `${x},${ys[i]}`).join(' ');
-                    return (
-                      <>
-                        <polyline fill="none" stroke="#10b981" strokeWidth="2.5" points={points}/>
-                        {xs.map((x, i) => {
-                          if (filledValues[i] > 0) {
-                            return <circle key={i} cx={x} cy={ys[i]} r="4" fill="#10b981" />;
-                          }
-                          return null;
-                        })}
-                        {displayMonths.map((monthIdx, i) => (
-                          <text key={i} x={xs[i]} y="170" textAnchor="middle" fontSize="11" fill="#6b7280">{MONTHS_SHORT[monthIdx]}</text>
-                        ))}
-                        {xs.map((x, i) => {
-                          if (filledValues[i] > 0) {
-                            return (
-                              <text 
-                                key={`label-${i}`} 
-                                x={x} 
-                                y={ys[i] - 12} 
-                                textAnchor="middle" 
-                                fontSize="10" 
-                                fontWeight="600"
-                                fill="#047857"
-                              >
-                                {filledValues[i].toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </text>
-                            );
-                          }
-                          return null;
-                        })}
-                      </>
-                    );
-                  })()}
-                </svg>
-              </div>
-            </div>
-
-            {/* HPM Chart */}
-            <div className="bg-white rounded-lg shadow-sm p-6 w-full overflow-hidden">
-              <h2 className="text-lg font-semibold text-gray-800 mb-3">HPM</h2>
-              <div className="bg-gray-50 rounded-lg p-3 h-56 w-full overflow-hidden">
-                <svg width="100%" height="100%" viewBox="0 0 500 180" preserveAspectRatio="xMidYMid meet" style={{maxWidth:'100%', display:'block'}}>
-                  {(() => {
-                    const rawValues = getChartData('HPM');
-                    const filledMonths = getFilledMonths('HPM');
-                    if (filledMonths.length === 0) {
-                      return (
-                        <text x="250" y="90" textAnchor="middle" fontSize="14" fill="#9ca3af">
-                          Tidak ada data
-                        </text>
-                      );
-                    }
-                    // If less than 3 months, show first 3 months (Jan-Mar)
-                    const displayMonths = filledMonths.length < 3 ? [0, 1, 2] : filledMonths;
-                    const xs = displayMonths.map((_, i) => 30 + i * (440 / Math.max(displayMonths.length - 1, 1)));
-                    const filledValues = displayMonths.map(m => rawValues[m]);
-                    const ys = normalizeChartValues(filledValues);
-                    const points = xs.map((x, i) => `${x},${ys[i]}`).join(' ');
-                    return (
-                      <>
-                        <polyline fill="none" stroke="#f59e0b" strokeWidth="2.5" points={points}/>
-                        {xs.map((x, i) => {
-                          if (filledValues[i] > 0) {
-                            return <circle key={i} cx={x} cy={ys[i]} r="4" fill="#f59e0b" />;
-                          }
-                          return null;
-                        })}
-                        {displayMonths.map((monthIdx, i) => (
-                          <text key={i} x={xs[i]} y="170" textAnchor="middle" fontSize="11" fill="#6b7280">{MONTHS_SHORT[monthIdx]}</text>
-                        ))}
-                        {xs.map((x, i) => {
-                          if (filledValues[i] > 0) {
-                            return (
-                              <text 
-                                key={`label-${i}`} 
-                                x={x} 
-                                y={ys[i] - 12} 
-                                textAnchor="middle" 
-                                fontSize="10" 
-                                fontWeight="600"
-                                fill="#b45309"
-                              >
-                                {filledValues[i].toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </text>
-                            );
-                          }
-                          return null;
-                        })}
-                      </>
-                    );
-                  })()}
-                </svg>
-              </div>
-            </div>
-
-            {/* HARGA JUAL Chart */}
-            <div className="bg-white rounded-lg shadow-sm p-6 w-full overflow-hidden">
-              <h2 className="text-lg font-semibold text-gray-800 mb-3">HARGA JUAL</h2>
-              <div className="bg-gray-50 rounded-lg p-3 h-56 w-full overflow-hidden">
-                <svg width="100%" height="100%" viewBox="0 0 500 180" preserveAspectRatio="xMidYMid meet" style={{maxWidth:'100%', display:'block'}}>
-                  {(() => {
-                    const rawValues = getChartData('HARGA JUAL');
-                    const filledMonths = getFilledMonths('HARGA JUAL');
-                    if (filledMonths.length === 0) {
-                      return (
-                        <text x="250" y="90" textAnchor="middle" fontSize="14" fill="#9ca3af">
-                          Tidak ada data
-                        </text>
-                      );
-                    }
-                    // If less than 3 months, show first 3 months (Jan-Mar)
-                    const displayMonths = filledMonths.length < 3 ? [0, 1, 2] : filledMonths;
-                    const xs = displayMonths.map((_, i) => 30 + i * (440 / Math.max(displayMonths.length - 1, 1)));
-                    const filledValues = displayMonths.map(m => rawValues[m]);
-                    const ys = normalizeChartValues(filledValues);
-                    const points = xs.map((x, i) => `${x},${ys[i]}`).join(' ');
-                    return (
-                      <>
-                        <polyline fill="none" stroke="#ef4444" strokeWidth="2.5" points={points}/>
-                        {xs.map((x, i) => {
-                          if (filledValues[i] > 0) {
-                            return <circle key={i} cx={x} cy={ys[i]} r="4" fill="#ef4444" />;
-                          }
-                          return null;
-                        })}
-                        {displayMonths.map((monthIdx, i) => (
-                          <text key={i} x={xs[i]} y="170" textAnchor="middle" fontSize="11" fill="#6b7280">{MONTHS_SHORT[monthIdx]}</text>
-                        ))}
-                        {xs.map((x, i) => {
-                          if (filledValues[i] > 0) {
-                            return (
-                              <text 
-                                key={`label-${i}`} 
-                                x={x} 
-                                y={ys[i] - 12} 
-                                textAnchor="middle" 
-                                fontSize="10" 
-                                fontWeight="600"
-                                fill="#b91c1c"
-                              >
-                                {filledValues[i].toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </text>
-                            );
-                          }
-                          return null;
-                        })}
-                      </>
-                    );
-                  })()}
-                </svg>
-              </div>
-            </div>
+            ))}
           </div>
           )}
 
@@ -802,6 +646,17 @@ export default function SalesMarketingPage() {
           </div>
         </div>
       )}
+      {/* Tooltip */}
+      {tooltip && (
+        <div
+          className="fixed z-50 pointer-events-none px-3 py-2 rounded-lg shadow-lg text-xs font-semibold text-white"
+          style={{ left: tooltip.x + 12, top: tooltip.y - 44, backgroundColor: '#1e293b', whiteSpace: 'nowrap' }}
+        >
+          <div className="text-gray-300 font-normal mb-0.5">{tooltip.label}</div>
+          <div>{tooltip.value}</div>
+        </div>
+      )}
+
       {/* Confirmation Modal */}
       {showConfirmModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
