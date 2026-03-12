@@ -18,7 +18,7 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useAuth();
-  const { bureau, isAdmin, permissions } = useUserRole();
+  const { bureau, isAdmin, permissions, isSuperAdmin } = useUserRole();
   const [showLoadingRate, setShowLoadingRate] = useState<boolean>(false);
   const [showQCSubmenu, setShowQCSubmenu] = useState<boolean>(false);
   const [showFinanceSubmenu, setShowFinanceSubmenu] = useState<boolean>(false);
@@ -32,8 +32,8 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
   // }, [permissions, isAdmin]);
 
   useEffect(() => {
-  setShowLoadingRate(Array.isArray(permissions) ? permissions.includes('loading-rate') : false || isAdmin);
-}, [permissions, isAdmin]);
+    setShowLoadingRate(Array.isArray(permissions) ? permissions.includes('loading-rate') : false || isSuperAdmin);
+  }, [permissions, isSuperAdmin]);
 
   const getActiveTab = () => {
     if (pathname === "/") return "home";
@@ -138,7 +138,10 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
   ];
 
   const getVisibleMenuItems = () => {
-    if (isAdmin) return menuItems;
+    // Only super admin can see all menus
+    if (isSuperAdmin) return menuItems;
+    
+    // Admin and regular users see menus based on permissions
     return menuItems.filter(item => {
       if (item.id === 'logout' || item.id === 'home') return true;
       return Array.isArray(permissions) && permissions.includes(item.id);
