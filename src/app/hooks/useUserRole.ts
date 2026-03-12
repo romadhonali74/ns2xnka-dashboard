@@ -20,6 +20,8 @@ export const useUserRole = (): UserRoleData => {
     role: null,
     bureau: null,
     isAdmin: false,
+    isSuperAdmin: false,
+    isRegularAdmin: false,
     isLoading: true,
     permissions: [],
     crudPermissions: {},
