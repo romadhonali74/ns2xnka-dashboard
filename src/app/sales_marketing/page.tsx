@@ -3,11 +3,37 @@
 import React, { useState, useEffect } from "react";
 import Sidebar from "../components/sidebar";
 import { useUserRole } from "../hooks/useUserRole";
+import { PieChart, Pie, Cell, Tooltip as ReTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis } from "recharts";
 
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 const CATEGORIES = ['HMA','PREMIUM','HPM','HARGA JUAL'];
 
 type PriceData = { [kategori: string]: { [key: string]: string } };
+
+const BarTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="px-3 py-2 rounded-lg shadow-lg text-xs font-semibold text-white" style={{ backgroundColor: '#1e293b', whiteSpace: 'nowrap' }}>
+      <div className="text-gray-300 font-normal mb-1">{label}</div>
+      {payload.map((p: any) => (
+        <div key={p.dataKey} style={{ color: p.fill }}>
+          {p.dataKey === 'p1' ? 'Periode I' : 'Periode II'}: {p.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const DonutTooltip = ({ active, payload }: any) => {
+  if (!active || !payload?.length) return null;
+  const d = payload[0];
+  return (
+    <div className="px-3 py-2 rounded-lg shadow-lg text-xs font-semibold text-white" style={{ backgroundColor: '#1e293b', whiteSpace: 'nowrap' }}>
+      <div className="text-gray-300 font-normal mb-0.5">{d.name}</div>
+      <div>{d.value.toLocaleString('en-US', { maximumFractionDigits: 0 })} t</div>
+    </div>
+  );
+};
 
 export default function SalesMarketingPage() {
   const { isSuperAdmin, isLoading } = useUserRole();
@@ -17,19 +43,16 @@ export default function SalesMarketingPage() {
   const [loading, setLoading] = useState(true);
   const [presentationMode, setPresentationMode] = useState(false);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; label: string; value: string } | null>(null);
-  const [completedVessels, setCompletedVessels] = useState<number>(0);
-  const [carryOverVessels, setCarryOverVessels] = useState<number>(0);
+  type VesselRow = { vessel_name: string; buyer: string | null; rencana_muat: string | null; commenced_loading_date: string | null };
+  const [vesselRows, setVesselRows] = useState<VesselRow[]>([]);
+  const [selectedBuyer, setSelectedBuyer] = useState<string>("ALL");
   const [kapalLoading, setKapalLoading] = useState<boolean>(false);
 
-  const fetchVesselSummary = async (year: number) => {
+  const fetchVesselDonut = async (year: number) => {
     setKapalLoading(true);
     try {
-      const res = await fetch(`/api/vessel_status_summary?year=${year}`);
-      if (res.ok) {
-        const data = await res.json();
-        setCompletedVessels(data.completed ?? 0);
-        setCarryOverVessels(data.carry_over_to_next_month ?? 0);
-      }
+      const res = await fetch(`/api/vessel-donut?year=${year}`);
+      if (res.ok) setVesselRows(await res.json());
     } catch { }
     setKapalLoading(false);
   };
@@ -38,7 +61,7 @@ export default function SalesMarketingPage() {
   useEffect(() => {
     if (!isLoading) {
       fetchPriceData();
-      fetchVesselSummary(selectedYear);
+      fetchVesselDonut(selectedYear);
     }
   }, [selectedYear, isLoading]);
 
@@ -110,52 +133,31 @@ export default function SalesMarketingPage() {
     const rawValues2 = getChartDataPeriode(kategori, 2);
     const filledMonths = getFilledMonths(kategori);
     if (filledMonths.length === 0)
-      return <text x="250" y="90" textAnchor="middle" fontSize="14" fill="#9ca3af">Tidak ada data</text>;
+      return (
+        <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">Tidak ada data</div>
+      );
     const displayMonths = filledMonths.length < 3 ? [0, 1, 2] : filledMonths;
-    const n = displayMonths.length;
-    const chartW = 460; const startX = 20; const baseY = 165;
-    const groupW = chartW / n;
-    const barW = Math.min(groupW * 0.28, 15);
-    const gap = 6;
+    const chartData = displayMonths.map(m => ({
+      name: MONTHS_SHORT[m],
+      p1: rawValues1[m] || 0,
+      p2: rawValues2[m] || 0,
+    }));
+    // dynamic bar size: wider when fewer months, narrower when more
+    const barSize = Math.max(6, Math.min(22, Math.floor(200 / displayMonths.length)));
     return (
-      <>
-        {displayMonths.map((monthIdx, i) => {
-          const cx = startX + i * groupW + groupW / 2;
-          const v1 = rawValues1[monthIdx]; const v2 = rawValues2[monthIdx];
-          const y1 = toY(v1, yMax, yMin); const y2 = toY(v2, yMax, yMin);
-          return (
-            <g key={i}>
-              {v1 > 0 && (
-                <>
-                  <rect x={cx - barW - gap} y={y1} width={barW} height={baseY - y1} fill={color1} rx="2" style={{cursor:'pointer'}}
-                    onMouseEnter={e => {
-                      const rect = (e.target as SVGRectElement).closest('svg')!.getBoundingClientRect();
-                      setTooltip({ x: rect.left + (cx - barW/2 - gap) * (rect.width/500), y: rect.top + y1 * (rect.height/195), label: `Periode I - ${MONTHS_SHORT[monthIdx]}`, value: v1.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) });
-                    }}
-                    onMouseLeave={() => setTooltip(null)}
-                  />
-                  <text x={cx - barW/2 - gap} y={y1 - 5} textAnchor="middle" fontSize="11" fontWeight="700" fill={color1}>{fmtLabel(v1)}</text>
-                </>
-              )}
-              {v2 > 0 && (
-                <>
-                  <rect x={cx + gap} y={y2} width={barW} height={baseY - y2} fill={color2} rx="2" style={{cursor:'pointer'}}
-                    onMouseEnter={e => {
-                      const rect = (e.target as SVGRectElement).closest('svg')!.getBoundingClientRect();
-                      setTooltip({ x: rect.left + (cx + barW/2 + gap) * (rect.width/500), y: rect.top + y2 * (rect.height/195), label: `Periode II - ${MONTHS_SHORT[monthIdx]}`, value: v2.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) });
-                    }}
-                    onMouseLeave={() => setTooltip(null)}
-                  />
-                  <text x={cx + barW/2 + gap} y={y2 - 5} textAnchor="middle" fontSize="11" fontWeight="700" fill={color2}>{fmtLabel(v2)}</text>
-                </>
-              )}
-              <text x={cx} y="185" textAnchor="middle" fontSize="11" fill="#6b7280">{MONTHS_SHORT[monthIdx]}</text>
-            </g>
-          );
-        })}
-        <text x="20" y="12" fontSize="10" fill={color1} fontWeight="600">● Periode I</text>
-        <text x="110" y="12" fontSize="10" fill={color2} fontWeight="600">● Periode II</text>
-      </>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData} margin={{ top: 18, right: 6, left: 6, bottom: 4 }} barCategoryGap="20%" barGap={3}>
+          <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+          <YAxis domain={[yMin, yMax]} hide />
+          <ReTooltip content={<BarTooltip />} cursor={{ fill: '#f1f5f9' }} />
+          <Bar dataKey="p1" fill={color1} radius={[3, 3, 0, 0]} maxBarSize={barSize}
+            label={{ position: 'top', fontSize: 10, fontWeight: 700, fill: color1, formatter: (v: any) => fmtLabel(Number(v)) }} />
+          <Bar dataKey="p2" fill={color2} radius={[3, 3, 0, 0]} maxBarSize={barSize}
+            label={{ position: 'top', fontSize: 10, fontWeight: 700, fill: color2, formatter: (v: any) => fmtLabel(Number(v)) }} />
+          <text x="6" y="10" fontSize="10" fill={color1} fontWeight="600">● Periode I</text>
+          <text x="76" y="10" fontSize="10" fill={color2} fontWeight="600">● Periode II</text>
+        </BarChart>
+      </ResponsiveContainer>
     );
   };
 
@@ -290,92 +292,117 @@ export default function SalesMarketingPage() {
               <div className="bg-white rounded-xl shadow-sm p-3 flex flex-col overflow-hidden">
                 <h2 className="text-base font-semibold text-gray-700 mb-1 flex-shrink-0">PREMIUM</h2>
                 <div className="flex-1 min-h-0">
-                  <svg width="100%" height="100%" viewBox="0 0 500 195" preserveAspectRatio="xMidYMid meet" style={{display:'block'}}>
-                    {renderBarChart('PREMIUM', '#3b82f6', '#ef4444', 100, 0)}
-                  </svg>
+                  {renderBarChart('PREMIUM', '#3b82f6', '#ef4444', 100, 0)}
                 </div>
               </div>
               {/* HPM */}
               <div className="bg-white rounded-xl shadow-sm p-3 flex flex-col overflow-hidden">
                 <h2 className="text-base font-semibold text-gray-700 mb-1 flex-shrink-0">HPM</h2>
                 <div className="flex-1 min-h-0">
-                  <svg width="100%" height="100%" viewBox="0 0 500 195" preserveAspectRatio="xMidYMid meet" style={{display:'block'}}>
-                    {renderBarChart('HPM', '#3b82f6', '#ef4444', 100, 0)}
-                  </svg>
+                  {renderBarChart('HPM', '#3b82f6', '#ef4444', 100, 0)}
                 </div>
               </div>
-              {/* Donut - Vessel Status Summary */}
-              <div className="bg-white rounded-xl shadow-sm p-3 flex flex-col overflow-hidden">
-                <h2 className="text-base font-semibold text-gray-700 mb-1 flex-shrink-0">Status Kapal {selectedYear}</h2>
-                <div className="flex-1 flex items-center justify-center">
-                  {kapalLoading ? (
-                    <div className="w-32 h-32 bg-gray-100 animate-pulse rounded-full" />
-                  ) : (() => {
-                    const total = completedVessels + carryOverVessels;
-                    const r = 38; const circ = 2 * Math.PI * r;
-                    const completedDash = total > 0 ? (completedVessels / total) * circ : 0;
-                    const carryDash = total > 0 ? (carryOverVessels / total) * circ : 0;
-                    return (
-                      <div className="flex flex-col items-center w-full">
-                        <div className="relative" style={{width:'min(130px,11vw)',height:'min(130px,11vw)'}}>
-                          <svg viewBox="0 0 100 100" className="w-full h-full">
-                            <defs>
-                              <filter id="donut-shadow" x="-20%" y="-20%" width="140%" height="140%">
-                                <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#00000022" />
-                              </filter>
-                            </defs>
-                            <circle cx="50" cy="50" r={r} fill="none" stroke="#f3f4f6" strokeWidth="14" />
-                            <circle cx="50" cy="50" r={r} fill="none" stroke="#f59e0b" strokeWidth="14"
-                              strokeDasharray={`${carryDash} ${circ}`}
-                              strokeDashoffset={circ * 0.25}
-                              strokeLinecap="butt"
-                              filter="url(#donut-shadow)"
-                              style={{transform:'rotate(-90deg)',transformOrigin:'50% 50%',cursor:'pointer'}}
-                              onMouseEnter={e => {
-                                const rect = (e.target as SVGCircleElement).closest('svg')!.getBoundingClientRect();
-                                setTooltip({ x: rect.left + rect.width / 2, y: rect.top, label: 'Carry Over', value: String(carryOverVessels) });
-                              }}
-                              onMouseLeave={() => setTooltip(null)}
-                            />
-                            <circle cx="50" cy="50" r={r} fill="none" stroke="#10b981" strokeWidth="14"
-                              strokeDasharray={`${completedDash} ${circ}`}
-                              strokeDashoffset={circ * 0.25 - carryDash}
-                              strokeLinecap="butt"
-                              filter="url(#donut-shadow)"
-                              style={{transform:'rotate(-90deg)',transformOrigin:'50% 50%',cursor:'pointer'}}
-                              onMouseEnter={e => {
-                                const rect = (e.target as SVGCircleElement).closest('svg')!.getBoundingClientRect();
-                                setTooltip({ x: rect.left + rect.width / 2, y: rect.top, label: 'Selesai', value: String(completedVessels) });
-                              }}
-                              onMouseLeave={() => setTooltip(null)}
-                            />
-                            <circle cx="50" cy="50" r={r} fill="none" stroke="#00000010" strokeWidth="2" />
-                            <text x="50" y="46" textAnchor="middle" fontSize="16" fontWeight="800" fill="#1e293b"
-                              style={{cursor:'pointer'}}
-                              onMouseEnter={e => {
-                                const rect = (e.target as SVGTextElement).closest('svg')!.getBoundingClientRect();
-                                setTooltip({ x: rect.left + rect.width / 2, y: rect.top, label: 'Total Kapal', value: String(total) });
-                              }}
-                              onMouseLeave={() => setTooltip(null)}
-                            >{total}</text>
-                            <text x="50" y="58" textAnchor="middle" fontSize="7" fill="#9ca3af">Total</text>
-                          </svg>
+              {/* Donut - Dynamic Vessel Chart */}
+              {(() => {
+                const DONUT_COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316','#84cc16','#ec4899','#14b8a6'];
+                const buyers = ['ALL', ...Array.from(new Set(vesselRows.map(r => r.buyer ?? 'Unknown'))).sort()];
+
+                // Data transformation
+                let donutData: { name: string; value: number; loaded: number; unloaded: number }[];
+                let centerLabel: string;
+                let centerValue: number;
+                let isLoadingMode = false;
+
+                if (selectedBuyer === 'ALL') {
+                  // Mode: rencana_muat per buyer
+                  const map = new Map<string, number>();
+                  vesselRows.forEach(r => {
+                    const b = r.buyer ?? 'Unknown';
+                    const v = parseFloat(r.rencana_muat ?? '0') || 0;
+                    map.set(b, (map.get(b) ?? 0) + v);
+                  });
+                  donutData = Array.from(map.entries()).map(([name, value]) => ({ name, value, loaded: 0, unloaded: 0 }));
+                  centerValue = donutData.reduce((s, d) => s + d.value, 0);
+                  centerLabel = 'Total Tonase';
+                } else {
+                  // Mode: loading status for selected buyer
+                  isLoadingMode = true;
+                  const rows = vesselRows.filter(r => (r.buyer ?? 'Unknown') === selectedBuyer);
+                  const loaded = rows.filter(r => !!r.commenced_loading_date).reduce((s, r) => s + (parseFloat(r.rencana_muat ?? '0') || 0), 0);
+                  const unloaded = rows.filter(r => !r.commenced_loading_date).reduce((s, r) => s + (parseFloat(r.rencana_muat ?? '0') || 0), 0);
+                  donutData = [
+                    { name: 'Sudah Muat', value: loaded, loaded, unloaded },
+                    { name: 'Belum Muat', value: unloaded, loaded, unloaded },
+                  ];
+                  centerValue = loaded + unloaded;
+                  centerLabel = 'Total Tonase';
+                }
+
+                const fmtTon = (v: number) => v >= 1000000 ? `${(v/1000000).toFixed(1)}M` : v >= 1000 ? `${(v/1000).toFixed(1)}K` : String(Math.round(v));
+                const segColors = isLoadingMode ? ['#10b981', '#f59e0b'] : DONUT_COLORS;
+
+                return (
+                  <div className="bg-white rounded-xl shadow-sm p-3 flex flex-col overflow-hidden">
+                    <div className="flex items-center justify-between mb-1 flex-shrink-0">
+                      <h2 className="text-base font-semibold text-gray-700">Status Kapal {selectedYear}</h2>
+                      <select
+                        value={selectedBuyer}
+                        onChange={e => setSelectedBuyer(e.target.value)}
+                        className="text-xs border border-gray-200 rounded-md px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400 max-w-[110px] truncate"
+                      >
+                        {buyers.map(b => <option key={b} value={b}>{b === 'ALL' ? 'Semua Buyer' : b}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex-1 min-h-0 relative">
+                      {kapalLoading ? (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <div className="w-24 h-24 bg-gray-100 animate-pulse rounded-full" />
                         </div>
-                        <div className="flex gap-4 mt-2">
-                          <div className="flex items-center gap-1.5">
-                            <span className="w-3 h-3 rounded-full inline-block" style={{backgroundColor:'#10b981'}} />
-                            <span className="text-xs font-semibold text-gray-600">Selesai</span>
+                      ) : donutData.length === 0 || centerValue === 0 ? (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">Tidak ada data</div>
+                      ) : (
+                        <>
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                key={selectedBuyer}
+                                data={donutData}
+                                cx="50%" cy="50%"
+                                innerRadius="52%" outerRadius="72%"
+                                dataKey="value"
+                                paddingAngle={2}
+                                labelLine={false}
+                                label={false}
+                                isAnimationActive={true}
+                                animationBegin={0}
+                                animationDuration={600}
+                                animationEasing="ease-out"
+                              >
+                                {donutData.map((_, i) => <Cell key={i} fill={segColors[i % segColors.length]} />)}
+                              </Pie>
+                              <ReTooltip content={<DonutTooltip />} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                          {/* Center label overlay */}
+                          <div key={selectedBuyer} className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ animation: 'fadeIn 0.5s ease-out' }}>
+                            <span className="text-base font-extrabold text-slate-800 leading-tight">{fmtTon(centerValue)}</span>
+                            <span className="text-[9px] text-gray-400 leading-tight">{centerLabel}</span>
                           </div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="w-3 h-3 rounded-full inline-block" style={{backgroundColor:'#f59e0b'}} />
-                            <span className="text-xs font-semibold text-gray-600">Carry Over</span>
-                          </div>
+                        </>
+                      )}
+                    </div>
+                    {/* Legend */}
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 flex-shrink-0 justify-center">
+                      {donutData.map((d, i) => (
+                        <div key={d.name} className="flex items-center gap-1">
+                          <span className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: segColors[i % segColors.length] }} />
+                          <span className="text-xs text-gray-600 truncate max-w-[80px]" title={d.name}>{d.name}</span>
                         </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
           )}
