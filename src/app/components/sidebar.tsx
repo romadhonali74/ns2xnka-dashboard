@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, TrendingUp, AlertTriangle, LogOut, Calendar, ShieldCheck, ChevronDown, ChevronRight, FileText, BarChart3, Settings, Users, ChevronLeft, Menu, Ship, Container, PackageSearch, FolderKanban, DollarSign, Receipt, TrendingUpIcon } from "lucide-react";
+import { ShieldUser, ChartNoAxesCombined, Landmark, Home, TrendingUp, AlertTriangle, LogOut, Calendar, ShieldCheck, ChevronDown, ChevronRight, FileText, BarChart3, Settings, Users, ChevronLeft, Menu, Ship, Container, PackageSearch, FolderKanban, DollarSign, Receipt, TrendingUpIcon, HandCoins, Database } from "lucide-react";
 import { Button } from "./ui/button";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "../lib/supabase";
@@ -50,6 +50,7 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
     if (pathname === "/finance/cash_cost_report") return "finance-cash-cost";
     if (pathname === "/finance/detail_report") return "finance-detail";
     if (pathname === "/sales_marketing") return "sales-marketing";
+    if (pathname === "/master_data_sales") return "master-data-sales";
     if (pathname === "/user_management/details") return "user-details";
     if (pathname === "/user_management/privileges") return "user-privileges";
     if (pathname === "/users") return "users";
@@ -99,6 +100,7 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
     else if (tab === "finance-cash-cost") router.push("/finance/cash_cost_report");
     else if (tab === "finance-detail") router.push("/finance/detail_report");
     else if (tab === "sales-marketing") router.push("/sales_marketing");
+    else if (tab === "master-data-sales") router.push("/master_data_sales");
     else if (tab === "user_management") setShowUserMgmtSubmenu(!showUserMgmtSubmenu);
     else if (tab === "user-details") router.push("/user_management/details");
     else if (tab === "user-privileges") router.push("/user_management/privileges");
@@ -113,8 +115,9 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
     { id: "issues", label: "Significant Issues", icon: AlertTriangle },
     { id: "quality_control", label: "Quality Control", icon: ShieldCheck },
     { id: "mining-reports", label: "Mining Reports", icon: BarChart3 },
-    { id: "finance", label: "Finance", icon: DollarSign },
-    { id: "sales-marketing", label: "Sales & Marketing", icon: TrendingUpIcon },
+    { id: "finance", label: "Finance", icon: Landmark },
+    { id: "sales-marketing", label: "Sales & Marketing", icon: HandCoins },
+    { id: "master-data-sales", label: "Master Data Sales", icon: Database },
     { id: "user_management", label: "User Management", icon: Settings },
     { id: "logout", label: "Log out", icon: LogOut },
   ];
@@ -129,19 +132,16 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
 
   const financeSubMenuItems = [
     { id: "finance-cash-cost", label: "Cash Cost Report", icon: DollarSign },
-    { id: "finance-detail", label: "Detail Report", icon: Receipt },
+    { id: "finance-detail", label: "Detail Report", icon: ChartNoAxesCombined },
   ];
 
   const userMgmtSubMenuItems = [
     { id: "user-details", label: "Details", icon: Users },
-    { id: "user-privileges", label: "Group Privilege", icon: ShieldCheck },
+    { id: "user-privileges", label: "Group Privilege", icon: ShieldUser },
   ];
 
   const getVisibleMenuItems = () => {
-    // Only super admin can see all menus
     if (isSuperAdmin) return menuItems;
-    
-    // Admin and regular users see menus based on permissions
     return menuItems.filter(item => {
       if (item.id === 'logout' || item.id === 'home') return true;
       return Array.isArray(permissions) && permissions.includes(item.id);

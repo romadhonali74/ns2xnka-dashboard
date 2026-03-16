@@ -19,15 +19,21 @@ export async function GET(request: NextRequest) {
     }
 
     const { data, error } = await supabase
-      .from("vessel_status_summary")
-      .select("tahun, bulan, total_realisasi")
-      .eq("tahun", parseInt(year));
+      .from("vessel_status")
+      .select("status")
+      .in("status", ["completed", "carry_over_to_next_month"])
+      .like("month_year", `${year}-%`);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json(data || []);
+    const counts: Record<string, number> = { completed: 0, carry_over_to_next_month: 0 };
+    (data || []).forEach((row: { status: string }) => {
+      if (counts[row.status] !== undefined) counts[row.status]++;
+    });
+
+    return NextResponse.json(counts);
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unknown error" },

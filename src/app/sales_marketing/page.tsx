@@ -1,63 +1,44 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import Sidebar from "../components/sidebar";
 import { useUserRole } from "../hooks/useUserRole";
 
-const MONTHS = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 const CATEGORIES = ['HMA','PREMIUM','HPM','HARGA JUAL'];
 
 type PriceData = { [kategori: string]: { [key: string]: string } };
 
 export default function SalesMarketingPage() {
-  const { isAdmin, bureau, isSuperAdmin, isLoading } = useUserRole();
+  const { isSuperAdmin, isLoading } = useUserRole();
   
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [showModal, setShowModal] = useState(false);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [modalPage, setModalPage] = useState(1);
   const [priceData, setPriceData] = useState<PriceData>({});
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [chartView, setChartView] = useState<'grid' | 'vertical'>('grid');
-  const [editMode, setEditMode] = useState(false);
-  const [editData, setEditData] = useState<PriceData>({});
+  const [presentationMode, setPresentationMode] = useState(false);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; label: string; value: string } | null>(null);
-  const [formData, setFormData] = useState({ 
-    year: new Date().getFullYear(), 
-    month: 1, 
-    periode1: { hma: '', premium: '', hpm: '', harga_jual: '' },
-    periode2: { hma: '', premium: '', hpm: '', harga_jual: '' }
-  });
+  const [completedVessels, setCompletedVessels] = useState<number>(0);
+  const [carryOverVessels, setCarryOverVessels] = useState<number>(0);
+  const [kapalLoading, setKapalLoading] = useState<boolean>(false);
 
-  // Check if table has any data
-  const hasTableData = () => {
-    if (!priceData || Object.keys(priceData).length === 0) return false;
-    
-    for (const kategori of CATEGORIES) {
-      for (let month = 1; month <= 12; month++) {
-        for (let periode = 1; periode <= 2; periode++) {
-          const key = `${month}_${periode}`;
-          const value = priceData[kategori]?.[key];
-          if (value && value !== '-' && parseFloat(value) > 0) {
-            return true;
-          }
-        }
+  const fetchVesselSummary = async (year: number) => {
+    setKapalLoading(true);
+    try {
+      const res = await fetch(`/api/vessel_status_summary?year=${year}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCompletedVessels(data.completed ?? 0);
+        setCarryOverVessels(data.carry_over_to_next_month ?? 0);
       }
-    }
-    return false;
+    } catch { }
+    setKapalLoading(false);
   };
-
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const isDragging = useRef(false);
-  const startX = useRef(0);
-  const scrollLeftRef = useRef(0);
 
   // Fetch data from database
   useEffect(() => {
     if (!isLoading) {
       fetchPriceData();
+      fetchVesselSummary(selectedYear);
     }
   }, [selectedYear, isLoading]);
 
@@ -65,8 +46,12 @@ export default function SalesMarketingPage() {
     try {
       setLoading(true);
       const res = await fetch(`/api/price-monthly?year=${selectedYear}`);
-      if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
+      if (!res.ok) {
+        console.error('price-monthly API error:', data);
+        setPriceData({});
+        return;
+      }
       
       const formatted: PriceData = {};
       data.forEach((row: any) => {
@@ -88,37 +73,6 @@ export default function SalesMarketingPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  React.useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const onDown = (e: MouseEvent) => {
-      isDragging.current = true;
-      startX.current = e.clientX;
-      scrollLeftRef.current = el.scrollLeft;
-    };
-    const onUp = () => { isDragging.current = false; };
-    const onMove = (e: MouseEvent) => {
-      if (!isDragging.current) return;
-      el.scrollLeft = scrollLeftRef.current - (e.clientX - startX.current);
-    };
-    el.addEventListener('mousedown', onDown);
-    window.addEventListener('mouseup', onUp);
-    window.addEventListener('mousemove', onMove);
-    return () => {
-      el.removeEventListener('mousedown', onDown);
-      window.removeEventListener('mouseup', onUp);
-      window.removeEventListener('mousemove', onMove);
-    };
-  }, []);
-
-  const getValue = (kategori: string, month: number, periode: number) => {
-    const value = priceData[kategori]?.[`${month}_${periode}`];
-    if (!value || value === '-') return '-';
-    const num = parseFloat(value);
-    if (isNaN(num)) return '-';
-    return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   const getChartDataPeriode = (kategori: string, periode: number) => {
@@ -145,6 +99,66 @@ export default function SalesMarketingPage() {
   // Fixed scale with yMin support: top=y20, bottom=y150, range=130px
   const toY = (v: number, yMax: number, yMin: number = 0) => 165 - ((v - yMin) / (yMax - yMin)) * 130;
 
+  const fmtLabel = (v: number) => {
+    if (v >= 1000000) return `${(v / 1000000).toFixed(1)}M`;
+    if (v >= 1000) return `${(v / 1000).toFixed(1)}K`;
+    return v % 1 === 0 ? String(v) : v.toFixed(1);
+  };
+
+  const renderBarChart = (kategori: string, color1: string, color2: string, yMax: number, yMin: number = 0) => {
+    const rawValues1 = getChartDataPeriode(kategori, 1);
+    const rawValues2 = getChartDataPeriode(kategori, 2);
+    const filledMonths = getFilledMonths(kategori);
+    if (filledMonths.length === 0)
+      return <text x="250" y="90" textAnchor="middle" fontSize="14" fill="#9ca3af">Tidak ada data</text>;
+    const displayMonths = filledMonths.length < 3 ? [0, 1, 2] : filledMonths;
+    const n = displayMonths.length;
+    const chartW = 460; const startX = 20; const baseY = 165;
+    const groupW = chartW / n;
+    const barW = Math.min(groupW * 0.28, 15);
+    const gap = 6;
+    return (
+      <>
+        {displayMonths.map((monthIdx, i) => {
+          const cx = startX + i * groupW + groupW / 2;
+          const v1 = rawValues1[monthIdx]; const v2 = rawValues2[monthIdx];
+          const y1 = toY(v1, yMax, yMin); const y2 = toY(v2, yMax, yMin);
+          return (
+            <g key={i}>
+              {v1 > 0 && (
+                <>
+                  <rect x={cx - barW - gap} y={y1} width={barW} height={baseY - y1} fill={color1} rx="2" style={{cursor:'pointer'}}
+                    onMouseEnter={e => {
+                      const rect = (e.target as SVGRectElement).closest('svg')!.getBoundingClientRect();
+                      setTooltip({ x: rect.left + (cx - barW/2 - gap) * (rect.width/500), y: rect.top + y1 * (rect.height/195), label: `Periode I - ${MONTHS_SHORT[monthIdx]}`, value: v1.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) });
+                    }}
+                    onMouseLeave={() => setTooltip(null)}
+                  />
+                  <text x={cx - barW/2 - gap} y={y1 - 5} textAnchor="middle" fontSize="11" fontWeight="700" fill={color1}>{fmtLabel(v1)}</text>
+                </>
+              )}
+              {v2 > 0 && (
+                <>
+                  <rect x={cx + gap} y={y2} width={barW} height={baseY - y2} fill={color2} rx="2" style={{cursor:'pointer'}}
+                    onMouseEnter={e => {
+                      const rect = (e.target as SVGRectElement).closest('svg')!.getBoundingClientRect();
+                      setTooltip({ x: rect.left + (cx + barW/2 + gap) * (rect.width/500), y: rect.top + y2 * (rect.height/195), label: `Periode II - ${MONTHS_SHORT[monthIdx]}`, value: v2.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) });
+                    }}
+                    onMouseLeave={() => setTooltip(null)}
+                  />
+                  <text x={cx + barW/2 + gap} y={y2 - 5} textAnchor="middle" fontSize="11" fontWeight="700" fill={color2}>{fmtLabel(v2)}</text>
+                </>
+              )}
+              <text x={cx} y="185" textAnchor="middle" fontSize="11" fill="#6b7280">{MONTHS_SHORT[monthIdx]}</text>
+            </g>
+          );
+        })}
+        <text x="20" y="12" fontSize="10" fill={color1} fontWeight="600">● Periode I</text>
+        <text x="110" y="12" fontSize="10" fill={color2} fontWeight="600">● Periode II</text>
+      </>
+    );
+  };
+
   const renderChart = (kategori: string, color1: string, color2: string, yMax: number, yMin: number = 0) => {
     const rawValues1 = getChartDataPeriode(kategori, 1);
     const rawValues2 = getChartDataPeriode(kategori, 2);
@@ -152,7 +166,7 @@ export default function SalesMarketingPage() {
     if (filledMonths.length === 0)
       return <text x="250" y="90" textAnchor="middle" fontSize="14" fill="#9ca3af">Tidak ada data</text>;
     const displayMonths = filledMonths.length < 3 ? [0, 1, 2] : filledMonths;
-    const xs = displayMonths.map((_, i) => 60 + i * (410 / Math.max(displayMonths.length - 1, 1)));
+    const xs = displayMonths.map((_, i) => 20 + i * (460 / Math.max(displayMonths.length - 1, 1)));
     const fv1 = displayMonths.map(m => rawValues1[m]);
     const fv2 = displayMonths.map(m => rawValues2[m]);
     const ys1 = fv1.map(v => toY(v, yMax, yMin));
@@ -164,7 +178,6 @@ export default function SalesMarketingPage() {
     const area2 = xs.map((x,i)=>`${x},${ys2[i]}`).join(' ');
     const poly1 = `${xs[0]},${baseY} ${area1} ${xs[xs.length-1]},${baseY}`;
     const poly2 = `${xs[0]},${baseY} ${area2} ${xs[xs.length-1]},${baseY}`;
-    const yTicks = [0,1,2,3,4].map(i => ({ val: yMax - i * ((yMax - yMin) / 4), y: 35 + i * 32.5 }));
     return (
       <>
         <defs>
@@ -177,195 +190,71 @@ export default function SalesMarketingPage() {
             <stop offset="100%" stopColor={color2} stopOpacity="0" />
           </linearGradient>
         </defs>
-        {yTicks.map((tick, i) => (
-          <g key={i}>
-            <line x1="55" x2="480" y1={tick.y} y2={tick.y} stroke="#000" strokeWidth="1" opacity="0.1" />
-            <text x="50" y={tick.y + 4} textAnchor="end" fontSize="9" fill="#9ca3af">
-              {tick.val.toLocaleString('id-ID')}
-            </text>
-          </g>
-        ))}
         <polygon fill={`url(#${id1})`} points={poly1} />
         <polygon fill={`url(#${id2})`} points={poly2} />
         <polyline fill="none" stroke={color1} strokeWidth="2.5" points={xs.map((x,i)=>`${x},${ys1[i]}`).join(' ')}/>
         <polyline fill="none" stroke={color2} strokeWidth="2.5" points={xs.map((x,i)=>`${x},${ys2[i]}`).join(' ')}/>
         {xs.map((x,i) => fv1[i] > 0 && (
-          <circle key={`p1-${i}`} cx={x} cy={ys1[i]} r="5" fill={color1} style={{cursor:'pointer'}}
-            onMouseEnter={e => {
-              const rect = (e.target as SVGCircleElement).closest('svg')!.getBoundingClientRect();
-              const scaleX = rect.width / 500; const scaleY = rect.height / 180;
-              setTooltip({ x: rect.left + x * scaleX, y: rect.top + ys1[i] * scaleY, label: `Periode I - ${MONTHS_SHORT[displayMonths[i]]}`, value: fv1[i].toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) });
-            }}
-            onMouseLeave={() => setTooltip(null)}
-          />
+          <g key={`p1-${i}`}>
+            <circle cx={x} cy={ys1[i]} r="5" fill={color1} style={{cursor:'pointer'}}
+              onMouseEnter={e => {
+                const rect = (e.target as SVGCircleElement).closest('svg')!.getBoundingClientRect();
+                setTooltip({ x: rect.left + x * (rect.width/500), y: rect.top + ys1[i] * (rect.height/195), label: `Periode I - ${MONTHS_SHORT[displayMonths[i]]}`, value: fv1[i].toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) });
+              }}
+              onMouseLeave={() => setTooltip(null)}
+            />
+            <text x={x} y={ys1[i] + 20} textAnchor="middle" fontSize="11" fontWeight="700" fill={color1}>{fmtLabel(fv1[i])}</text>
+          </g>
         ))}
         {xs.map((x,i) => fv2[i] > 0 && (
-          <circle key={`p2-${i}`} cx={x} cy={ys2[i]} r="5" fill={color2} style={{cursor:'pointer'}}
-            onMouseEnter={e => {
-              const rect = (e.target as SVGCircleElement).closest('svg')!.getBoundingClientRect();
-              const scaleX = rect.width / 500; const scaleY = rect.height / 180;
-              setTooltip({ x: rect.left + x * scaleX, y: rect.top + ys2[i] * scaleY, label: `Periode II - ${MONTHS_SHORT[displayMonths[i]]}`, value: fv2[i].toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) });
-            }}
-            onMouseLeave={() => setTooltip(null)}
-          />
+          <g key={`p2-${i}`}>
+            <circle cx={x} cy={ys2[i]} r="5" fill={color2} style={{cursor:'pointer'}}
+              onMouseEnter={e => {
+                const rect = (e.target as SVGCircleElement).closest('svg')!.getBoundingClientRect();
+                setTooltip({ x: rect.left + x * (rect.width/500), y: rect.top + ys2[i] * (rect.height/195), label: `Periode II - ${MONTHS_SHORT[displayMonths[i]]}`, value: fv2[i].toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) });
+              }}
+              onMouseLeave={() => setTooltip(null)}
+            />
+            <text x={x} y={ys2[i] - 12} textAnchor="middle" fontSize="11" fontWeight="700" fill={color2}>{fmtLabel(fv2[i])}</text>
+          </g>
         ))}
         {displayMonths.map((monthIdx,i) => <text key={i} x={xs[i]} y="185" textAnchor="middle" fontSize="11" fill="#6b7280">{MONTHS_SHORT[monthIdx]}</text>)}
-        <text x="65" y="12" fontSize="10" fill={color1} fontWeight="600">● Periode I</text>
-        <text x="155" y="12" fontSize="10" fill={color2} fontWeight="600">● Periode II</text>
+        <text x="20" y="12" fontSize="10" fill={color1} fontWeight="600">● Periode I</text>
+        <text x="110" y="12" fontSize="10" fill={color2} fontWeight="600">● Periode II</text>
       </>
     );
   };
 
-  const handleInputChange = (periode: 'periode1' | 'periode2', key: string, value: string) => {
-    // Allow only numbers and one decimal point
-    const regex = /^\d*\.?\d{0,2}$/;
-    if (value === '' || regex.test(value)) {
-      setFormData({
-        ...formData,
-        [periode]: { ...formData[periode], [key]: value }
-      });
-    }
-  };
-
-  const handleSave = async () => {
-    const periode1Exists = priceData.HMA?.[`${formData.month}_1`] && priceData.HMA[`${formData.month}_1`] !== '-';
-    const periode2Exists = priceData.HMA?.[`${formData.month}_2`] && priceData.HMA[`${formData.month}_2`] !== '-';
-    
-    if (periode1Exists || periode2Exists) {
-      setShowConfirmModal(true);
-      return;
-    }
-    
-    await saveData();
-  };
-
-  const handleEditTable = () => {
-    setEditMode(true);
-    setEditData(JSON.parse(JSON.stringify(priceData)));
-  };
-
-  const handleCancelEdit = () => {
-    setEditMode(false);
-    setEditData({});
-  };
-
-  const handleEditChange = (kategori: string, month: number, periode: number, value: string) => {
-    const regex = /^\d*\.?\d{0,2}$/;
-    if (value === '' || regex.test(value)) {
-      const key = `${month}_${periode}`;
-      setEditData({
-        ...editData,
-        [kategori]: {
-          ...editData[kategori],
-          [key]: value
-        }
-      });
-    }
-  };
-
-  // Check if a specific cell has data (can be edited)
-  const canEditCell = (kategori: string, month: number, periode: number) => {
-    const key = `${month}_${periode}`;
-    const value = priceData[kategori]?.[key];
-    return value && value !== '-' && parseFloat(value) > 0;
-  };
-
-  const handleSaveTable = async () => {
-    try {
-      setSaving(true);
-      // Save all edited data
-      for (let month = 1; month <= 12; month++) {
-        for (let periode = 1; periode <= 2; periode++) {
-          const key = `${month}_${periode}`;
-          const hma = editData.HMA?.[key] || '';
-          const premium = editData.PREMIUM?.[key] || '';
-          const hpm = editData.HPM?.[key] || '';
-          const harga_jual = editData['HARGA JUAL']?.[key] || '';
-          
-          // Only save if at least one field has data
-          if (hma || premium || hpm || harga_jual) {
-            const payload = {
-              year: selectedYear,
-              month: month,
-              [`periode${periode}`]: {
-                hma: hma || '0',
-                premium: premium || '0',
-                hpm: hpm || '0',
-                harga_jual: harga_jual || '0'
-              }
-            };
-            
-            await fetch('/api/price-monthly', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
-            });
-          }
-        }
-      }
-      
-      await fetchPriceData();
-      setEditMode(false);
-      setEditData({});
-    } catch (error) {
-      console.error('Error saving table data:', error);
-      alert('Failed to save data');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const saveData = async () => {
-    try {
-      setSaving(true);
-      const res = await fetch('/api/price-monthly', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-      
-      if (!res.ok) throw new Error('Failed to save');
-      
-      await fetchPriceData();
-      setShowModal(false);
-      setShowConfirmModal(false);
-      setModalPage(1);
-      setFormData({ 
-        year: new Date().getFullYear(), 
-        month: 1, 
-        periode1: { hma: '', premium: '', hpm: '', harga_jual: '' },
-        periode2: { hma: '', premium: '', hpm: '', harga_jual: '' }
-      });
-    } catch (error) {
-      console.error('Error saving price data:', error);
-      alert('Failed to save data');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
     <>
-      {/* Wrapper: Fixed height, no scroll on wrapper itself */}
       <div className="flex h-screen overflow-hidden" style={{ backgroundColor: "#f1f2f7" }}>
-        {/* Sidebar: Fixed width, full height, only vertical scroll if needed */}
-        <Sidebar />
-        
-        {/* Main Content Area: Flexible width, scrollable vertically */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-          {/* Inner Content: All your content goes here */}
-          <div className="p-8 w-full">
-          <div className="flex justify-between items-center mb-4">
-            <h1 className="text-2xl font-bold text-[#273240]">Sales & Marketing</h1>
-            <div className="flex gap-3">
-              {/* Super Admin OR Admin Marketing can add data */}
-              {(isSuperAdmin || (isAdmin && bureau?.toLowerCase() === 'marketing')) && (
-                <button onClick={() => setShowModal(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer">
-                  + Add Data
-                </button>
-              )}
+        {/* Sidebar: hidden in presentation mode */}
+        {!presentationMode && <Sidebar />}
+
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-2 bg-white shadow-sm flex-shrink-0">
+            <div className="flex items-center gap-3">
+              {/* Presentation Mode Toggle */}
+              <button
+                onClick={() => setPresentationMode(p => !p)}
+                title={presentationMode ? 'Exit Presentation Mode' : 'Presentation Mode'}
+                className={`p-2 rounded-lg border transition-all cursor-pointer ${
+                  presentationMode ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </button>
+              <h1 className="text-xl font-bold text-[#273240]">Sales & Marketing</h1>
+            </div>
+            <div className="flex gap-2 items-center">
+
               <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                 {Array.from({length: 10}, (_, i) => new Date().getFullYear() - i).map(year => (
                   <option key={year} value={year}>{year}</option>
                 ))}
@@ -373,279 +262,126 @@ export default function SalesMarketingPage() {
             </div>
           </div>
 
-          {/* Chart View Toggle */}
-          <div className="flex justify-end mb-6">
-            <div className="inline-flex rounded-lg border border-gray-300 bg-white p-1">
-              <button
-                onClick={() => setChartView('grid')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-all cursor-pointer ${
-                  chartView === 'grid'
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <svg className="w-4 h-4 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
-                </svg>
-                Grid
-              </button>
-              <button
-                onClick={() => setChartView('vertical')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-all cursor-pointer ${
-                  chartView === 'vertical'
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <svg className="w-4 h-4 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-                Vertical
-              </button>
-            </div>
-          </div>
-
-          {/* Top Layer - Charts */}
-          {isLoading ? (
-            <div className="text-center py-12">Loading user data...</div>
-          ) : loading ? (
-            <div className="text-center py-12">Loading...</div>
+          {/* 5-Chart Presentation Grid */}
+          {isLoading || loading ? (
+            <div className="flex-1 flex items-center justify-center text-gray-400 text-lg">Loading...</div>
           ) : (
-          <div className={chartView === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 gap-6 mb-6' : 'space-y-6 mb-6'}>
-            {([{k:'HMA',yMax:25000,yMin:10000},{k:'PREMIUM',yMax:100,yMin:0},{k:'HPM',yMax:100,yMin:0},{k:'HARGA JUAL',yMax:100,yMin:0}] as {k:string,yMax:number,yMin:number}[]).map(({k,yMax,yMin}) => (
-              <div key={k} className="bg-white rounded-lg shadow-sm p-6 w-full overflow-hidden">
-                <h2 className="text-lg font-semibold text-gray-800 mb-3">{k}</h2>
-                <div className="bg-gray-50 rounded-lg p-3 h-56 w-full overflow-hidden">
-                  <svg width="100%" height="100%" viewBox="0 0 500 195" preserveAspectRatio="xMidYMid meet" style={{maxWidth:'100%',display:'block'}}>
+          <div className="flex-1 p-3 overflow-hidden" style={{
+            display: 'grid',
+            gridTemplateRows: '1fr 1fr',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '10px',
+          }}>
+            {/* Row 1: HMA (col 1) + HARGA JUAL (col 2) */}
+            {([{k:'HMA',yMax:25000,yMin:10000},{k:'HARGA JUAL',yMax:100,yMin:0}] as {k:string,yMax:number,yMin:number}[]).map(({k,yMax,yMin}) => (
+              <div key={k} className="bg-white rounded-xl shadow-sm p-3 flex flex-col overflow-hidden">
+                <h2 className="text-base font-semibold text-gray-700 mb-1 flex-shrink-0">{k}</h2>
+                <div className="flex-1 min-h-0">
+                  <svg width="100%" height="100%" viewBox="0 0 500 195" preserveAspectRatio="xMidYMid meet" style={{display:'block'}}>
                     {renderChart(k, '#3b82f6', '#ef4444', yMax, yMin)}
                   </svg>
                 </div>
               </div>
             ))}
-          </div>
-          )}
 
-          {/* Bottom Layer - Price Table - Show if: Super Admin OR Admin Marketing */}
-          {(isSuperAdmin || (isAdmin && bureau?.toLowerCase() === 'marketing')) && (
-          <div className="bg-white rounded-lg shadow-sm p-8 w-full overflow-hidden">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">Laporan Harga Bulanan {selectedYear}</h2>
-              {!editMode ? (
-                hasTableData() && (
-                  <button
-                    onClick={handleEditTable}
-                    className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 cursor-pointer flex items-center gap-2"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                    Edit Data
-                  </button>
-                )
-              ) : (
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleSaveTable}
-                    disabled={saving}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    {saving ? 'Saving...' : 'Save'}
-                  </button>
-                  <button
-                    onClick={handleCancelEdit}
-                    disabled={saving}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                    Cancel
-                  </button>
+            {/* Row 2: PREMIUM + HPM + Donut (3 cols inside row 2, spanning both columns) */}
+            <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+              {/* PREMIUM */}
+              <div className="bg-white rounded-xl shadow-sm p-3 flex flex-col overflow-hidden">
+                <h2 className="text-base font-semibold text-gray-700 mb-1 flex-shrink-0">PREMIUM</h2>
+                <div className="flex-1 min-h-0">
+                  <svg width="100%" height="100%" viewBox="0 0 500 195" preserveAspectRatio="xMidYMid meet" style={{display:'block'}}>
+                    {renderBarChart('PREMIUM', '#3b82f6', '#ef4444', 100, 0)}
+                  </svg>
                 </div>
-              )}
-            </div>
-            <div ref={scrollRef} className="overflow-x-auto">
-              <table style={{borderCollapse:'separate', borderSpacing:0}}>
-                <thead>
-                  <tr style={{backgroundColor:'#f9fafb'}}>
-                    <th rowSpan={2} style={{border:'1px solid #ddd', padding:'12px 16px', textAlign:'center', width:'130px', position:'sticky', left:0, zIndex:2, backgroundColor:'#f9fafb', borderRight:'2px solid #aaa', boxShadow:'4px 0 6px -2px rgba(0,0,0,0.15)'}}>Kategori</th>
-                    {MONTHS.map(m => (
-                      <th key={m} colSpan={2} style={{border:'1px solid #ddd', padding:'12px 16px', textAlign:'center'}}>{m}</th>
-                    ))}
-                  </tr>
-                  <tr style={{backgroundColor:'#f9fafb'}}>
-                    {MONTHS.map((_, i) => {
-                      return (
-                        <React.Fragment key={i}>
-                          <th style={{border:'1px solid #ddd', padding:'10px 16px', textAlign:'center', fontSize:'12px', whiteSpace:'nowrap'}}>Periode I</th>
-                          <th style={{border:'1px solid #ddd', padding:'10px 16px', textAlign:'center', fontSize:'12px', whiteSpace:'nowrap'}}>Periode II</th>
-                        </React.Fragment>
-                      );
-                    })}
-                  </tr>
-                </thead>
-                <tbody>
-                  {CATEGORIES.map((kat) => (
-                    <tr key={kat} className="hover:bg-gray-50">
-                      <td style={{border:'1px solid #ddd', padding:'12px 16px', fontWeight:'600', position:'sticky', left:0, zIndex:1, backgroundColor:'#fff', borderRight:'2px solid #aaa', boxShadow:'4px 0 6px -2px rgba(0,0,0,0.15)'}}>{kat}</td>
-                      {MONTHS.map((_, mIdx) => {
-                        return (
-                          <React.Fragment key={mIdx}>
-                            <td style={{border:'1px solid #ddd', padding:'12px 16px', textAlign:'center'}}>
-                              {editMode && canEditCell(kat, mIdx+1, 1) ? (
-                                <input
-                                  type="text"
-                                  value={editData[kat]?.[`${mIdx+1}_1`] || ''}
-                                  onChange={(e) => handleEditChange(kat, mIdx+1, 1, e.target.value)}
-                                  placeholder="0.00"
-                                  className="w-full px-2 py-1 border border-gray-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                />
-                              ) : (
-                                getValue(kat, mIdx+1, 1)
-                              )}
-                            </td>
-                            <td style={{border:'1px solid #ddd', padding:'12px 16px', textAlign:'center'}}>
-                              {editMode && canEditCell(kat, mIdx+1, 2) ? (
-                                <input
-                                  type="text"
-                                  value={editData[kat]?.[`${mIdx+1}_2`] || ''}
-                                  onChange={(e) => handleEditChange(kat, mIdx+1, 2, e.target.value)}
-                                  placeholder="0.00"
-                                  className="w-full px-2 py-1 border border-gray-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                />
-                              ) : (
-                                getValue(kat, mIdx+1, 2)
-                              )}
-                            </td>
-                          </React.Fragment>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              </div>
+              {/* HPM */}
+              <div className="bg-white rounded-xl shadow-sm p-3 flex flex-col overflow-hidden">
+                <h2 className="text-base font-semibold text-gray-700 mb-1 flex-shrink-0">HPM</h2>
+                <div className="flex-1 min-h-0">
+                  <svg width="100%" height="100%" viewBox="0 0 500 195" preserveAspectRatio="xMidYMid meet" style={{display:'block'}}>
+                    {renderBarChart('HPM', '#3b82f6', '#ef4444', 100, 0)}
+                  </svg>
+                </div>
+              </div>
+              {/* Donut - Vessel Status Summary */}
+              <div className="bg-white rounded-xl shadow-sm p-3 flex flex-col overflow-hidden">
+                <h2 className="text-base font-semibold text-gray-700 mb-1 flex-shrink-0">Status Kapal {selectedYear}</h2>
+                <div className="flex-1 flex items-center justify-center">
+                  {kapalLoading ? (
+                    <div className="w-32 h-32 bg-gray-100 animate-pulse rounded-full" />
+                  ) : (() => {
+                    const total = completedVessels + carryOverVessels;
+                    const r = 38; const circ = 2 * Math.PI * r;
+                    const completedDash = total > 0 ? (completedVessels / total) * circ : 0;
+                    const carryDash = total > 0 ? (carryOverVessels / total) * circ : 0;
+                    return (
+                      <div className="flex flex-col items-center w-full">
+                        <div className="relative" style={{width:'min(130px,11vw)',height:'min(130px,11vw)'}}>
+                          <svg viewBox="0 0 100 100" className="w-full h-full">
+                            <defs>
+                              <filter id="donut-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                                <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#00000022" />
+                              </filter>
+                            </defs>
+                            <circle cx="50" cy="50" r={r} fill="none" stroke="#f3f4f6" strokeWidth="14" />
+                            <circle cx="50" cy="50" r={r} fill="none" stroke="#f59e0b" strokeWidth="14"
+                              strokeDasharray={`${carryDash} ${circ}`}
+                              strokeDashoffset={circ * 0.25}
+                              strokeLinecap="butt"
+                              filter="url(#donut-shadow)"
+                              style={{transform:'rotate(-90deg)',transformOrigin:'50% 50%',cursor:'pointer'}}
+                              onMouseEnter={e => {
+                                const rect = (e.target as SVGCircleElement).closest('svg')!.getBoundingClientRect();
+                                setTooltip({ x: rect.left + rect.width / 2, y: rect.top, label: 'Carry Over', value: String(carryOverVessels) });
+                              }}
+                              onMouseLeave={() => setTooltip(null)}
+                            />
+                            <circle cx="50" cy="50" r={r} fill="none" stroke="#10b981" strokeWidth="14"
+                              strokeDasharray={`${completedDash} ${circ}`}
+                              strokeDashoffset={circ * 0.25 - carryDash}
+                              strokeLinecap="butt"
+                              filter="url(#donut-shadow)"
+                              style={{transform:'rotate(-90deg)',transformOrigin:'50% 50%',cursor:'pointer'}}
+                              onMouseEnter={e => {
+                                const rect = (e.target as SVGCircleElement).closest('svg')!.getBoundingClientRect();
+                                setTooltip({ x: rect.left + rect.width / 2, y: rect.top, label: 'Selesai', value: String(completedVessels) });
+                              }}
+                              onMouseLeave={() => setTooltip(null)}
+                            />
+                            <circle cx="50" cy="50" r={r} fill="none" stroke="#00000010" strokeWidth="2" />
+                            <text x="50" y="46" textAnchor="middle" fontSize="16" fontWeight="800" fill="#1e293b"
+                              style={{cursor:'pointer'}}
+                              onMouseEnter={e => {
+                                const rect = (e.target as SVGTextElement).closest('svg')!.getBoundingClientRect();
+                                setTooltip({ x: rect.left + rect.width / 2, y: rect.top, label: 'Total Kapal', value: String(total) });
+                              }}
+                              onMouseLeave={() => setTooltip(null)}
+                            >{total}</text>
+                            <text x="50" y="58" textAnchor="middle" fontSize="7" fill="#9ca3af">Total</text>
+                          </svg>
+                        </div>
+                        <div className="flex gap-4 mt-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-3 h-3 rounded-full inline-block" style={{backgroundColor:'#10b981'}} />
+                            <span className="text-xs font-semibold text-gray-600">Selesai</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-3 h-3 rounded-full inline-block" style={{backgroundColor:'#f59e0b'}} />
+                            <span className="text-xs font-semibold text-gray-600">Carry Over</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
             </div>
           </div>
           )}
         </div>
       </div>
-      </div>
 
-      {/* Add Data Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-white/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-5 rounded-t-2xl">
-              <h2 className="text-xl font-bold text-white">{modalPage === 1 ? 'Periode I' : 'Periode II'}</h2>
-              <div className="flex gap-2 mt-3">
-                <div className={`h-1 flex-1 rounded ${modalPage === 1 ? 'bg-white' : 'bg-blue-400'}`}></div>
-                <div className={`h-1 flex-1 rounded ${modalPage === 2 ? 'bg-white' : 'bg-blue-400'}`}></div>
-              </div>
-            </div>
-            <div className="p-6 space-y-4">
-              {modalPage === 1 && (
-                <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Tahun</label>
-                      <input type="number" value={formData.year} onChange={(e) => setFormData({...formData, year: Number(e.target.value)})}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Bulan</label>
-                      <select value={formData.month} onChange={(e) => setFormData({...formData, month: Number(e.target.value)})}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
-                        {MONTHS.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                  {([['HMA','hma'],['PREMIUM','premium'],['HPM','hpm'],['HARGA JUAL','harga_jual']] as [string,string][]).map(([label, key]) => (
-                    <div key={key}>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-                      <input 
-                        type="text" 
-                        value={formData.periode1[key as keyof typeof formData.periode1]}
-                        onChange={(e) => handleInputChange('periode1', key, e.target.value)}
-                        placeholder="0.00"
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" 
-                      />
-                    </div>
-                  ))}
-                </>
-              )}
-              {modalPage === 2 && (
-                <>
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-2">
-                    <p className="text-sm text-blue-800"><span className="font-semibold">Tahun:</span> {formData.year} | <span className="font-semibold">Bulan:</span> {MONTHS[formData.month - 1]}</p>
-                  </div>
-                  {([['HMA','hma'],['PREMIUM','premium'],['HPM','hpm'],['HARGA JUAL','harga_jual']] as [string,string][]).map(([label, key]) => (
-                    <div key={key}>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-                      <input 
-                        type="text" 
-                        value={formData.periode2[key as keyof typeof formData.periode2]}
-                        onChange={(e) => handleInputChange('periode2', key, e.target.value)}
-                        placeholder="0.00"
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" 
-                      />
-                    </div>
-                  ))}
-                </>
-              )}
-            </div>
-            <div className="px-6 py-4 bg-gray-50 rounded-b-2xl flex justify-between">
-              <button 
-                onClick={() => { setShowModal(false); setModalPage(1); }} 
-                disabled={saving}
-                className="px-5 py-2 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Cancel
-              </button>
-              <div className="flex gap-3">
-                {modalPage === 2 && (
-                  <button 
-                    onClick={() => setModalPage(1)} 
-                    disabled={saving}
-                    className="px-5 py-2 border-2 border-blue-600 text-blue-600 rounded-xl hover:bg-blue-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Back
-                  </button>
-                )}
-                {modalPage === 1 ? (
-                  <button 
-                    onClick={() => setModalPage(2)} 
-                    disabled={saving}
-                    className="px-5 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Next
-                  </button>
-                ) : (
-                  <button 
-                    onClick={handleSave} 
-                    disabled={saving}
-                    className="px-5 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  >
-                    {saving ? (
-                      <>
-                        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Saving...
-                      </>
-                    ) : (
-                      'Save'
-                    )}
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
       {/* Tooltip */}
       {tooltip && (
         <div
@@ -657,55 +393,6 @@ export default function SalesMarketingPage() {
         </div>
       )}
 
-      {/* Confirmation Modal */}
-      {showConfirmModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-            <div className="bg-gradient-to-r from-amber-500 to-orange-600 px-6 py-5 rounded-t-2xl">
-              <div className="flex items-center gap-3">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <h2 className="text-xl font-bold text-white">Peringatan</h2>
-              </div>
-            </div>
-            <div className="p-6">
-              <p className="text-gray-700 text-base leading-relaxed">
-                Data untuk <span className="font-semibold text-gray-900">{MONTHS[formData.month - 1]} {formData.year}</span> sudah ada.
-              </p>
-              <p className="text-gray-700 text-base leading-relaxed mt-2">
-                Apakah Anda yakin ingin <span className="font-semibold text-orange-600">mengubah data yang sudah ada</span>?
-              </p>
-            </div>
-            <div className="px-6 py-4 bg-gray-50 rounded-b-2xl flex justify-end gap-3">
-              <button 
-                onClick={() => setShowConfirmModal(false)} 
-                disabled={saving}
-                className="px-5 py-2 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Batal
-              </button>
-              <button 
-                onClick={saveData} 
-                disabled={saving}
-                className="px-5 py-2 bg-orange-600 text-white rounded-xl hover:bg-orange-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {saving ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Menyimpan...
-                  </>
-                ) : (
-                  'Ya, Ubah Data'
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }
