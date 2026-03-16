@@ -294,10 +294,9 @@ export default function RealisasiPengapalanPage() {
   };
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#f1f2f7" }}>
-      <div className="flex">
-        <Sidebar onTabChange={handleTabChange} />
-        <div className="flex-1 p-8">
+    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: "#f1f2f7" }}>
+      <Sidebar onTabChange={handleTabChange} />
+        <div className="flex-1 overflow-auto p-8">
           <div className="bg-white rounded-lg shadow-sm overflow-hidden">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
@@ -579,7 +578,6 @@ export default function RealisasiPengapalanPage() {
             </div>
           </div>
         </div>
-      </div>
     </div>
   );
 }

@@ -460,9 +460,9 @@ export default function MiningReportsTable() {
   };
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#f1f2f7" }}>
-      <div className="flex">
-        <Sidebar />
+    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: "#f1f2f7" }}>
+      <Sidebar />
+        <div className="flex-1 overflow-auto">
         <div className="crud-container">
             <div className="crud-header">
                     <h2>Daily Nickel Production & Barging Report</h2>

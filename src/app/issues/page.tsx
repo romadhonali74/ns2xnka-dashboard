@@ -148,13 +148,11 @@ export default function SignificantIssuesPage() {
   const anyEditable = filteredRows.some((row) => canEdit(row));
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#f1f2f7" }}>
-      <div className="flex">
-        {/* Sidebar Component */}
-        <Sidebar onTabChange={handleTabChange} />
+    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: "#f1f2f7" }}>
+      <Sidebar onTabChange={handleTabChange} />
 
         {/* Main Content */}
-        <div className="flex-1 p-8">
+        <div className="flex-1 overflow-auto p-8">
           {/* Header */}
           <div className="mb-8">
             <div className="flex justify-between items-center mb-6">
@@ -336,7 +334,6 @@ export default function SignificantIssuesPage() {
             </CardContent>
           </Card>
         </div>
-      </div>
     </div>
   );
 }

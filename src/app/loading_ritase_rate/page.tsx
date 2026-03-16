@@ -943,9 +943,9 @@ export default function LoadingRateTable() {
   if (dataError) return <div>Error loading data: {dataError}</div>;
 
   return (
-    <div className="min-h-screen">
-      <div className="flex">
-        <Sidebar onTabChange={() => {}} />
+    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: "#f1f2f7" }}>
+      <Sidebar onTabChange={() => {}} />
+        <div className="flex-1 overflow-auto">
         <Card className="w-full">
           <CardHeader>
             <CardTitle className="text-center text-lg font-bold">
@@ -1763,7 +1763,7 @@ export default function LoadingRateTable() {
             </Dialog>
           </CardContent>
         </Card>
-      </div>
+        </div>
     </div>
   );
 }
