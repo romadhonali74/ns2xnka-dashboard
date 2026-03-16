@@ -35,6 +35,17 @@ const DonutTooltip = ({ active, payload }: any) => {
   );
 };
 
+const CompletedTooltip = ({ active, payload }: any) => {
+  if (!active || !payload?.length) return null;
+  const d = payload[0];
+  return (
+    <div className="px-3 py-2 rounded-lg shadow-lg text-xs font-semibold text-white" style={{ backgroundColor: '#1e293b', whiteSpace: 'nowrap' }}>
+      <div className="text-gray-300 font-normal mb-0.5">{d.name}</div>
+      <div>{d.value} kapal</div>
+    </div>
+  );
+};
+
 export default function SalesMarketingPage() {
   const { isSuperAdmin, isLoading } = useUserRole();
   
@@ -44,15 +55,25 @@ export default function SalesMarketingPage() {
   const [presentationMode, setPresentationMode] = useState(false);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; label: string; value: string } | null>(null);
   type VesselRow = { vessel_name: string; buyer: string | null; rencana_muat: string | null; commenced_loading_date: string | null };
+  type CompletedRow = { buyer: string; jumlah_kapal: number };
+  type SummaryRow = { status: string; buyer: string | null; jumlah_kapal: number };
   const [vesselRows, setVesselRows] = useState<VesselRow[]>([]);
+  const [completedByBuyer, setCompletedByBuyer] = useState<CompletedRow[]>([]);
+  const [summaryRows, setSummaryRows] = useState<SummaryRow[]>([]);
   const [selectedBuyer, setSelectedBuyer] = useState<string>("ALL");
+  const [donutMode, setDonutMode] = useState<'status' | 'tonase'>('status');
+  const [activeStatus, setActiveStatus] = useState<string>('completed');
   const [kapalLoading, setKapalLoading] = useState<boolean>(false);
 
   const fetchVesselDonut = async (year: number) => {
     setKapalLoading(true);
     try {
-      const res = await fetch(`/api/vessel-donut?year=${year}`);
-      if (res.ok) setVesselRows(await res.json());
+      const [detailRes, summaryRes] = await Promise.all([
+        fetch(`/api/vessel-donut?year=${year}`),
+        fetch(`/api/vessel-summary-status?year=${year}`),
+      ]);
+      if (detailRes.ok) setVesselRows(await detailRes.json());
+      if (summaryRes.ok) setSummaryRows(await summaryRes.json());
     } catch { }
     setKapalLoading(false);
   };
@@ -305,97 +326,155 @@ export default function SalesMarketingPage() {
               {/* Donut - Dynamic Vessel Chart */}
               {(() => {
                 const DONUT_COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316','#84cc16','#ec4899','#14b8a6'];
-                const buyers = ['ALL', ...Array.from(new Set(vesselRows.map(r => r.buyer ?? 'Unknown'))).sort()];
+                const NO_BUYER_COLOR = '#9ca3af';
 
-                // Data transformation
-                let donutData: { name: string; value: number; loaded: number; unloaded: number }[];
-                let centerLabel: string;
-                let centerValue: number;
-                let isLoadingMode = false;
+                const STATUS_TABS = [
+                  { key: 'completed',              label: 'Selesai',    color: '#10b981' },
+                  { key: 'loading',                label: 'Loading',    color: '#3b82f6' },
+                  { key: 'waiting',                label: 'Waiting',    color: '#f97316' },
+                  { key: 'carry_over_to_next_month', label: 'Carry Over', color: '#8b5cf6' },
+                ];
+
+                // ── MODE: Status per Buyer (from vessel_summary_by_status) ────
+                const tabRows = summaryRows.filter(r => r.status === activeStatus);
+                const buyerMap = new Map<string, number>();
+                tabRows.forEach(r => {
+                  const b = r.buyer || 'No Buyer';
+                  buyerMap.set(b, (buyerMap.get(b) ?? 0) + r.jumlah_kapal);
+                });
+                const statusData = Array.from(buyerMap.entries())
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([name, value], i) => ({
+                    name,
+                    value,
+                    color: name === 'No Buyer' ? NO_BUYER_COLOR : DONUT_COLORS[i % DONUT_COLORS.length],
+                  }));
+                const statusTotal = statusData.reduce((s, d) => s + d.value, 0);
+
+                // ── MODE: Tonase per Buyer / Loading Status ───────────────────
+                const buyers = ['ALL', ...Array.from(new Set(vesselRows.map(r => r.buyer ?? 'No Buyer'))).sort()];
+                let tonaseData: { name: string; value: number; color: string }[];
+                let tonaseTotal: number;
 
                 if (selectedBuyer === 'ALL') {
-                  // Mode: rencana_muat per buyer
                   const map = new Map<string, number>();
                   vesselRows.forEach(r => {
-                    const b = r.buyer ?? 'Unknown';
-                    const v = parseFloat(r.rencana_muat ?? '0') || 0;
-                    map.set(b, (map.get(b) ?? 0) + v);
+                    const b = r.buyer ?? 'No Buyer';
+                    map.set(b, (map.get(b) ?? 0) + (parseFloat(r.rencana_muat ?? '0') || 0));
                   });
-                  donutData = Array.from(map.entries()).map(([name, value]) => ({ name, value, loaded: 0, unloaded: 0 }));
-                  centerValue = donutData.reduce((s, d) => s + d.value, 0);
-                  centerLabel = 'Total Tonase';
+                  const sorted = Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+                  tonaseData = sorted.map(([name, value], i) => ({
+                    name, value,
+                    color: name === 'No Buyer' ? NO_BUYER_COLOR : DONUT_COLORS[i % DONUT_COLORS.length],
+                  }));
+                  tonaseTotal = tonaseData.reduce((s, d) => s + d.value, 0);
                 } else {
-                  // Mode: loading status for selected buyer
-                  isLoadingMode = true;
-                  const rows = vesselRows.filter(r => (r.buyer ?? 'Unknown') === selectedBuyer);
-                  const loaded = rows.filter(r => !!r.commenced_loading_date).reduce((s, r) => s + (parseFloat(r.rencana_muat ?? '0') || 0), 0);
+                  const rows = vesselRows.filter(r => (r.buyer ?? 'No Buyer') === selectedBuyer);
+                  const loaded   = rows.filter(r =>  !!r.commenced_loading_date).reduce((s, r) => s + (parseFloat(r.rencana_muat ?? '0') || 0), 0);
                   const unloaded = rows.filter(r => !r.commenced_loading_date).reduce((s, r) => s + (parseFloat(r.rencana_muat ?? '0') || 0), 0);
-                  donutData = [
-                    { name: 'Sudah Muat', value: loaded, loaded, unloaded },
-                    { name: 'Belum Muat', value: unloaded, loaded, unloaded },
+                  tonaseData  = [
+                    { name: 'Sudah Muat', value: loaded,   color: '#10b981' },
+                    { name: 'Belum Muat', value: unloaded, color: '#f59e0b' },
                   ];
-                  centerValue = loaded + unloaded;
-                  centerLabel = 'Total Tonase';
+                  tonaseTotal = loaded + unloaded;
                 }
 
-                const fmtTon = (v: number) => v >= 1000000 ? `${(v/1000000).toFixed(1)}M` : v >= 1000 ? `${(v/1000).toFixed(1)}K` : String(Math.round(v));
-                const segColors = isLoadingMode ? ['#10b981', '#f59e0b'] : DONUT_COLORS;
+                const activeData  = donutMode === 'status' ? statusData  : tonaseData;
+                const activeTotal = donutMode === 'status' ? statusTotal : tonaseTotal;
+                const activeCfg   = STATUS_TABS.find(t => t.key === activeStatus)!;
+                const centerLabel = donutMode === 'status' ? activeCfg.label : 'Tonase';
+                const centerColor = donutMode === 'status' ? activeCfg.color : '#6b7280';
+                const animKey     = donutMode === 'status' ? `s-${activeStatus}-${selectedYear}` : `t-${selectedBuyer}`;
+                const fmtCenter   = (v: number) => donutMode === 'status'
+                  ? String(v)
+                  : v >= 1000000 ? `${(v/1000000).toFixed(1)}M` : v >= 1000 ? `${(v/1000).toFixed(1)}K` : String(Math.round(v));
 
                 return (
                   <div className="bg-white rounded-xl shadow-sm p-3 flex flex-col overflow-hidden">
-                    <div className="flex items-center justify-between mb-1 flex-shrink-0">
+                    {/* Header */}
+                    <div className="flex items-center justify-between mb-1.5 flex-shrink-0">
                       <h2 className="text-base font-semibold text-gray-700">Status Kapal {selectedYear}</h2>
-                      <select
-                        value={selectedBuyer}
-                        onChange={e => setSelectedBuyer(e.target.value)}
-                        className="text-xs border border-gray-200 rounded-md px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400 max-w-[110px] truncate"
-                      >
-                        {buyers.map(b => <option key={b} value={b}>{b === 'ALL' ? 'Semua Buyer' : b}</option>)}
-                      </select>
+                      {/* Mode toggle: Status | Tonase */}
+                      <div className="flex rounded-md overflow-hidden border border-gray-200 text-[11px] font-medium">
+                        <button onClick={() => setDonutMode('status')}
+                          className={`px-2 py-0.5 transition-colors cursor-pointer ${
+                            donutMode === 'status' ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'
+                          }`}>Status</button>
+                        <button onClick={() => setDonutMode('tonase')}
+                          className={`px-2 py-0.5 transition-colors cursor-pointer ${
+                            donutMode === 'tonase' ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'
+                          }`}>Tonase</button>
+                      </div>
                     </div>
+
+                    {/* Status sub-tabs — only in status mode */}
+                    {donutMode === 'status' && (
+                      <div className="flex gap-1 mb-1.5 flex-shrink-0 flex-wrap">
+                        {STATUS_TABS.map(t => (
+                          <button key={t.key} onClick={() => setActiveStatus(t.key)}
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-all cursor-pointer ${
+                              activeStatus === t.key ? 'text-white border-transparent' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+                            }`}
+                            style={activeStatus === t.key ? { backgroundColor: t.color } : {}}
+                          >{t.label}</button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Buyer filter — only in tonase mode */}
+                    {donutMode === 'tonase' && (
+                      <div className="mb-1 flex-shrink-0">
+                        <select value={selectedBuyer} onChange={e => setSelectedBuyer(e.target.value)}
+                          className="w-full text-xs border border-gray-200 rounded-md px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400">
+                          {buyers.map(b => <option key={b} value={b}>{b === 'ALL' ? 'Semua Buyer' : b}</option>)}
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Chart */}
                     <div className="flex-1 min-h-0 relative">
                       {kapalLoading ? (
                         <div className="w-full h-full flex items-center justify-center">
                           <div className="w-24 h-24 bg-gray-100 animate-pulse rounded-full" />
                         </div>
-                      ) : donutData.length === 0 || centerValue === 0 ? (
+                      ) : activeData.length === 0 || activeTotal === 0 ? (
                         <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">Tidak ada data</div>
                       ) : (
                         <>
                           <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                               <Pie
-                                key={selectedBuyer}
-                                data={donutData}
+                                key={animKey}
+                                data={activeData}
                                 cx="50%" cy="50%"
                                 innerRadius="52%" outerRadius="72%"
                                 dataKey="value"
                                 paddingAngle={2}
                                 labelLine={false}
                                 label={false}
-                                isAnimationActive={true}
+                                isAnimationActive
                                 animationBegin={0}
                                 animationDuration={600}
                                 animationEasing="ease-out"
                               >
-                                {donutData.map((_, i) => <Cell key={i} fill={segColors[i % segColors.length]} />)}
+                                {activeData.map((d, i) => <Cell key={i} fill={d.color} />)}
                               </Pie>
-                              <ReTooltip content={<DonutTooltip />} />
+                              <ReTooltip content={donutMode === 'status' ? <CompletedTooltip /> : <DonutTooltip />} />
                             </PieChart>
                           </ResponsiveContainer>
-                          {/* Center label overlay */}
-                          <div key={selectedBuyer} className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ animation: 'fadeIn 0.5s ease-out' }}>
-                            <span className="text-base font-extrabold text-slate-800 leading-tight">{fmtTon(centerValue)}</span>
+                          <div key={animKey + '-lbl'} className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ animation: 'fadeIn 0.5s ease-out' }}>
+                            <span className="text-base font-extrabold leading-tight" style={{ color: centerColor }}>{fmtCenter(activeTotal)}</span>
                             <span className="text-[9px] text-gray-400 leading-tight">{centerLabel}</span>
                           </div>
                         </>
                       )}
                     </div>
+
                     {/* Legend */}
                     <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 flex-shrink-0 justify-center">
-                      {donutData.map((d, i) => (
+                      {activeData.map(d => (
                         <div key={d.name} className="flex items-center gap-1">
-                          <span className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: segColors[i % segColors.length] }} />
+                          <span className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: d.color }} />
                           <span className="text-xs text-gray-600 truncate max-w-[80px]" title={d.name}>{d.name}</span>
                         </div>
                       ))}
