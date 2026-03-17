@@ -126,7 +126,6 @@ export default function MiningReportsTable() {
       const mtdResponse = await fetch(`/api/mining_summary?year=${selectedYear}&month=${selectedMonth}`);
       if (mtdResponse.ok) {
         const mtdData = await mtdResponse.json();
-        console.log('MTD Data:', mtdData); // Debug
         mtdData.forEach((item: any) => {
           if (item.company_id === 1) {
             monthToDateData.mka_plan = item.total_plan || 0;
@@ -148,7 +147,6 @@ export default function MiningReportsTable() {
       const ytdResponse = await fetch(`/api/mining_summary?year=${selectedYear}`);
       if (ytdResponse.ok) {
         const ytdData = await ytdResponse.json();
-        console.log('YTD Data:', ytdData); // Debug
         ytdData.forEach((item: any) => {
           if (item.bulan <= selectedMonth) {
             if (item.company_id === 1) {
@@ -169,7 +167,6 @@ export default function MiningReportsTable() {
       const thisYearResponse = await fetch(`/api/mining_summary?year=${selectedYear}`);
       if (thisYearResponse.ok) {
         const thisYearData = await thisYearResponse.json();
-        console.log('This Year Data:', thisYearData); // Debug
         thisYearData.forEach((item: any) => {
           if (item.company_id === 1) {
             thisYearProgressData.mka_plan += item.total_plan || 0;
@@ -304,8 +301,9 @@ export default function MiningReportsTable() {
         
         if (!response.ok) {
           const result = await response.json();
-          console.error('Submit Error:', result.error);
-          alert(`Error saving data for company ${data.company_id}: ${result.error}`);
+          const safeError = typeof result.error === 'string' ? result.error.replace(/[\r\n]/g, ' ') : 'Unknown error';
+          console.error('Submit Error for company', data.company_id);
+          alert(`Error saving data for company ${data.company_id}: ${safeError}`);
         }
       }
       

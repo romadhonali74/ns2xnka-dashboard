@@ -76,7 +76,6 @@ export default function AddSignificantIssuePage() {
         );
       }
 
-      console.log("Significant issue added successfully!");
       router.replace("/issues"); // Go back to the list page after saving
       router.refresh(); // Revalidate data on the list page
     } catch (err: unknown) {

@@ -200,7 +200,6 @@ export default function StylishCRUDTable() {
       if (!response.ok) {
         console.error('Fetch Error:', data.error);
       } else {
-        console.log('Fetched data:', data);
         setUsers(data || []);
         setFilteredUsers(data || []);
       }
@@ -321,7 +320,6 @@ export default function StylishCRUDTable() {
 
   const handleTabChange = (tab: string) => {
     // Handle tab change logic here if needed
-    console.log('Tab changed to:', tab);
   };
 
   // Pagination logic

@@ -12,7 +12,6 @@ export async function GET(request: NextRequest) {
 
     if (dateParam) {
       // Jika ada parameter 'date', ambil data untuk tanggal spesifik
-      console.log(`API: Fetching daily metrics for date: ${dateParam}`); // Log permintaan
       const { data: dailyMetric, error } = await supabase
         .from("loading_ritase_rate") // <<< PASTIKAN NAMA TABEL INI BENAR! (daily_metrics)
         .select("id, record_date, loading_rate, ritase_rate, created_at")
@@ -21,7 +20,6 @@ export async function GET(request: NextRequest) {
 
       // Tambahkan log error mentah di sini untuk debugging
       if (error) {
-        console.log("API: Raw Supabase error object for single fetch:", error);
       }
 
       // Tangani kasus data tidak ditemukan secara eksplisit (PGRST116)
@@ -75,9 +73,6 @@ export async function GET(request: NextRequest) {
       const formattedStartDate = startDate.toISOString().split("T")[0];
       const formattedEndDate = endDate.toISOString().split("T")[0];
 
-      console.log(
-        `API: Fetching daily metrics for month: ${monthParam} (${formattedStartDate} to ${formattedEndDate})`
-      ); // Log permintaan
       const { data: dailyMetrics, error } = await supabase
         .from("loading_ritase_rate") // <<< PASTIKAN NAMA TABEL INI BENAR! (daily_metrics)
         .select("id, record_date, loading_rate, ritase_rate, created_at")
@@ -87,7 +82,6 @@ export async function GET(request: NextRequest) {
 
       // Tambahkan log error mentah di sini untuk debugging
       if (error) {
-        console.log("API: Raw Supabase error object for month fetch:", error);
       }
 
       // Tangani error Supabase (jika ada)

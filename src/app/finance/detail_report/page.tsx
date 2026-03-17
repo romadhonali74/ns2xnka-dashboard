@@ -117,11 +117,9 @@ export default function DetailReportPage() {
           const summaryData = await summaryResponse.json();
           setFinanceSummary(summaryData);
         } else {
-          console.log('Finance summary API not available');
           setFinanceSummary([]);
         }
       } catch (summaryError) {
-        console.log('Finance summary API error:', summaryError);
         setFinanceSummary([]);
       }
     } catch (error) {

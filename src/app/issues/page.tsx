@@ -95,7 +95,6 @@ export default function SignificantIssuesPage() {
   }, [filterYear, filterMonth, filterBureu, filtersReady]);
 
   const handleTabChange = (tab: string) => {
-    console.log("Tab changed to:", tab);
   };
 
   const handleAddIssue = () => {

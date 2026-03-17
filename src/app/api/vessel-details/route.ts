@@ -11,7 +11,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
 const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 export async function POST(request: NextRequest) {
-  console.log('=== VESSEL DETAILS API START ===');
   
   if (!supabase) {
     console.error('Supabase client not initialized - missing environment variables');
@@ -20,13 +19,10 @@ export async function POST(request: NextRequest) {
   
   try {
     const body = await request.json();
-    console.log('Request body:', JSON.stringify(body, null, 2));
     
     const { vesselName, buyer, rencanaMuat, commencedLoadingDate, commencedLoadingTime, monthYear } = body;
-    console.log('Extracted fields:', { vesselName, buyer, rencanaMuat, commencedLoadingDate, commencedLoadingTime, monthYear });
 
     if (!vesselName || !monthYear) {
-      console.log('Validation failed: missing vesselName or monthYear');
       return NextResponse.json({ message: "Nama kapal dan bulan/tahun harus diisi" }, { status: 400 });
     }
 
@@ -38,9 +34,7 @@ export async function POST(request: NextRequest) {
       commenced_loading_time: commencedLoadingTime || null,
       month_year: monthYear
     };
-    console.log('Database payload:', JSON.stringify(payload, null, 2));
 
-    console.log('Attempting upsert...');
     const { data, error } = await supabase
       .from("vessel_details")
       .upsert(payload, { onConflict: 'vessel_name,month_year' })
@@ -51,18 +45,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Database error", details: error }, { status: 500 });
     }
 
-    console.log('Success! Data saved:', JSON.stringify(data, null, 2));
-    console.log('=== VESSEL DETAILS API END ===');
     return NextResponse.json({ data });
   } catch (error) {
     console.error('API Exception:', error);
-    console.log('=== VESSEL DETAILS API ERROR END ===');
     return NextResponse.json({ message: "Server error", details: error instanceof Error ? error.message : 'Unknown' }, { status: 500 });
   }
 }
 
 export async function GET(request: NextRequest) {
-  console.log('=== VESSEL DETAILS GET START ===');
   
   if (!supabase) {
     console.error('Supabase client not initialized for GET');
@@ -73,10 +63,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const vesselName = searchParams.get("vesselName");
     const monthYear = searchParams.get("monthYear");
-    console.log('GET params:', { vesselName, monthYear });
 
     if (!vesselName || !monthYear) {
-      console.log('GET: Missing params, returning null');
       return NextResponse.json({ data: null });
     }
 
@@ -88,11 +76,8 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (error) {
-      console.log('GET error (might be normal if no data):', error.message);
     }
     
-    console.log('GET result:', data);
-    console.log('=== VESSEL DETAILS GET END ===');
     return NextResponse.json({ data: data || null });
   } catch (error) {
     console.error('GET Exception:', error);

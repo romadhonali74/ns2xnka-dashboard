@@ -7,7 +7,6 @@ const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supa
 
 export async function GET(request: NextRequest) {
   if (!supabase) {
-    console.log('No supabase client available');
     return NextResponse.json({ data: {} });
   }
   

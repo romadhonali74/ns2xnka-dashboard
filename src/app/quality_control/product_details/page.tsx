@@ -114,7 +114,6 @@ export default function ProductDetailsTable() {
       if (!response.ok) {
         console.error('Fetch Error:', data.error);
       } else {
-        console.log('Fetched data:', data);
         setUsers(data || []);
         setFilteredUsers(data || []);
       }

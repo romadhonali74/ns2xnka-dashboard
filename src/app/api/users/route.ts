@@ -25,11 +25,6 @@ export async function GET() {
 
     const users = data.users.map(user => {
       // Log untuk debug
-      console.log('User metadata:', {
-        email: user.email,
-        app_metadata: user.app_metadata,
-        user_metadata: user.user_metadata
-      });
 
       return {
         id: user.id,

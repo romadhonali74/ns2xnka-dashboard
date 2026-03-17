@@ -47,7 +47,6 @@ export default function UsersPage() {
         throw new Error(data.error || 'Failed to fetch users');
       }
       
-      console.log('Users data received:', data);
       setUsers(data);
     } catch (error: any) {
       console.error('Error fetching users:', error);
@@ -94,15 +93,6 @@ export default function UsersPage() {
     setSubmitting(true);
     try {
       if (isAddMode) {
-        console.log('Creating user with data:', {
-          email: formData.email,
-          app_metadata: { 
-            role: formData.app_role, 
-            bureau: formData.app_bureau,
-            is_super_admin: formData.is_super_admin 
-          },
-          user_metadata: { role: formData.user_role, bureau: formData.user_bureau }
-        });
 
         const response = await fetch('/api/users', {
           method: 'POST',
@@ -121,7 +111,6 @@ export default function UsersPage() {
         });
 
         const data = await response.json();
-        console.log('Create user response:', data);
 
         if (response.ok) {
           setShowModal(false);
@@ -132,15 +121,6 @@ export default function UsersPage() {
       } else {
         if (!editingUser) return;
 
-        console.log('Updating user with data:', {
-          id: editingUser.id,
-          app_metadata: { 
-            role: formData.app_role, 
-            bureau: formData.app_bureau, 
-            is_super_admin: formData.is_super_admin 
-          },
-          user_metadata: { role: formData.user_role, bureau: formData.user_bureau }
-        });
 
         const response = await fetch('/api/users', {
           method: 'PUT',
@@ -153,7 +133,6 @@ export default function UsersPage() {
         });
 
         const data = await response.json();
-        console.log('Update user response:', data);
 
         if (response.ok) {
           setShowModal(false);

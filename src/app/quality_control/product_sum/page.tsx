@@ -91,17 +91,13 @@ export default function ProductSumTable() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      console.log('Fetching data from /api/product_sum...');
       const response = await fetch('/api/product_sum');
       const data = await response.json();
       
-      console.log('Response status:', response.status);
-      console.log('Response data:', data);
       
       if (!response.ok) {
         console.error('Fetch Error:', data.error);
       } else {
-        console.log('Fetched data successfully:', data);
         setUsers(data || []);
         setFilteredUsers(data || []);
       }

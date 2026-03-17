@@ -18,7 +18,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2, Undo2 } from "lucide-react";
 import Sidebar from "../components/sidebar";
-import { useAuth } from "../providers/auth_provider";
+import { useUserRole } from "../hooks/useUserRole";
 import { useVessels } from "../hooks/useVessels";
 import { useMonthVessels } from "../hooks/useMonthVessels";
 import { useLoadingData } from "../hooks/useLoadingRitaseData";
@@ -179,24 +179,9 @@ function computeCaretForDecimal(
 }
 
 export default function LoadingRateTable() {
-  const { user } = useAuth();
-  const bureu = ((): string | null => {
-    try {
-      const root = user as any;
-      return (
-        (
-          (root?.app_metadata?.bureu as string) ||
-          (root?.user_metadata?.bureu as string) ||
-          (root?.raw_app_meta_data?.bureu as string) ||
-          (root?.raw_user_meta_data?.bureu as string) ||
-          null
-        )?.toLowerCase?.() ?? null
-      );
-    } catch {
-      return null;
-    }
-  })();
-  const isShipping = bureu === "shipping";
+  const { isSuperAdmin, crudPermissions, isLoading: roleLoading } = useUserRole();
+  const crud = crudPermissions['loading-rate'] ?? { canCreate: false, canEdit: false, canDelete: false };
+  const isShipping = isSuperAdmin || crud.canCreate || crud.canEdit;
   const {
     vessels,
     loading: vesselsLoading,
@@ -251,6 +236,7 @@ export default function LoadingRateTable() {
     commencedLoadingDate: "",
     commencedLoadingTime: ""
   });
+  const [addVesselErrors, setAddVesselErrors] = useState<{ name?: string; buyer?: string }>({});
   const [isAddingVessel, setIsAddingVessel] = useState(false);
   const [displayIndexByDate, setDisplayIndexByDate] = useState<
     Record<string, Record<string, string>>
@@ -465,19 +451,13 @@ export default function LoadingRateTable() {
   };
 
   const handleVesselNameClick = async (vesselName: string) => {
-    console.log('=== VESSEL NAME CLICK START ===');
-    console.log('Vessel name:', vesselName);
-    console.log('Month year:', selectedMonthYear);
     
     try {
       const url = `/api/vessel-details?vesselName=${encodeURIComponent(vesselName)}&monthYear=${encodeURIComponent(selectedMonthYear)}`;
-      console.log('Fetching from:', url);
       
       const response = await fetch(url);
-      console.log('Response status:', response.status);
       
       const result = await response.json();
-      console.log('Response data:', result);
       
       if (result.data) {
         setVesselDetailForm({
@@ -506,14 +486,10 @@ export default function LoadingRateTable() {
         commencedLoadingTime: ""
       });
     }
-    console.log('=== VESSEL NAME CLICK END ===');
     setIsVesselDetailOpen(true);
   };
 
   const handleSaveVesselDetail = async () => {
-    console.log('=== SAVE VESSEL DETAIL START ===');
-    console.log('Form data:', vesselDetailForm);
-    console.log('Selected month year:', selectedMonthYear);
     
     try {
       const payload = {
@@ -524,7 +500,6 @@ export default function LoadingRateTable() {
         commencedLoadingTime: vesselDetailForm.commencedLoadingTime,
         monthYear: selectedMonthYear
       };
-      console.log('Sending payload:', payload);
       
       const response = await fetch("/api/vessel-details", {
         method: "POST",
@@ -532,7 +507,6 @@ export default function LoadingRateTable() {
         body: JSON.stringify(payload)
       });
       
-      console.log('Response status:', response.status);
       
       if (!response.ok) {
         const errorBody = await response.json().catch(() => ({}));
@@ -541,12 +515,9 @@ export default function LoadingRateTable() {
       }
       
       const result = await response.json();
-      console.log('Success response:', result);
-      console.log('=== SAVE VESSEL DETAIL SUCCESS ===');
       setIsVesselDetailOpen(false);
     } catch (error) {
       console.error('Save vessel detail error:', error);
-      console.log('=== SAVE VESSEL DETAIL ERROR ===');
       alert(error instanceof Error ? error.message : "Gagal menyimpan detail kapal");
     }
   };
@@ -755,9 +726,7 @@ export default function LoadingRateTable() {
     const name = (addVesselForm.name || "").trim();
     if (!name) return;
     
-    console.log('Setting loading to true');
     setIsAddingVessel(true);
-    console.log('Loading state should be true now');
     
     try {
       const existsInMaster = masterNames.some(
@@ -778,7 +747,6 @@ export default function LoadingRateTable() {
       }
 
       // Save vessel details
-      console.log('=== ADD VESSEL SAVE DETAILS START ===');
       const vesselPayload = {
         vesselName: name,
         buyer: addVesselForm.buyer,
@@ -787,7 +755,6 @@ export default function LoadingRateTable() {
         commencedLoadingTime: addVesselForm.commencedLoadingTime,
         monthYear: selectedMonthYear
       };
-      console.log('Vessel details payload:', vesselPayload);
       
       const vesselDetailsRes = await fetch("/api/vessel-details", {
         method: "POST",
@@ -795,16 +762,13 @@ export default function LoadingRateTable() {
         body: JSON.stringify(vesselPayload)
       });
       
-      console.log('Vessel details response status:', vesselDetailsRes.status);
       
       if (!vesselDetailsRes.ok) {
         const errorBody = await vesselDetailsRes.json().catch(() => ({}));
         console.error('Vessel details error:', errorBody);
       } else {
         const successBody = await vesselDetailsRes.json();
-        console.log('Vessel details success:', successBody);
       }
-      console.log('=== ADD VESSEL SAVE DETAILS END ===');
 
       const payload: any = {
         monthYear: selectedMonthYear,
@@ -926,7 +890,7 @@ export default function LoadingRateTable() {
     }
   };
 
-  if (vesselsLoading || dataLoading) {
+  if (roleLoading || vesselsLoading || dataLoading) {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
@@ -1532,7 +1496,7 @@ export default function LoadingRateTable() {
                 </DialogHeader>
                 <div className="space-y-4">
                   <div className="space-y-2 relative">
-                    <Label htmlFor="mvName">Nama Kapal</Label>
+                    <Label htmlFor="mvName">Nama Kapal <span className="text-red-500">*</span></Label>
                     <Input
                       id="mvName"
                       type="text"
@@ -1542,10 +1506,13 @@ export default function LoadingRateTable() {
                         setAddVesselForm(prev => ({ ...prev, name: e.target.value }));
                         setAddMonthVesselQuery(e.target.value);
                         setShowVesselSuggestions(true);
+                        if (e.target.value.trim()) setAddVesselErrors(prev => ({ ...prev, name: undefined }));
                       }}
                       onFocus={() => setShowVesselSuggestions(true)}
                       autoComplete="off"
+                      className={addVesselErrors.name ? "border-red-500" : ""}
                     />
+                    {addVesselErrors.name && <p className="text-xs text-red-500">{addVesselErrors.name}</p>}
                     {showVesselSuggestions && addVesselForm.name && (
                       <div className="absolute z-50 mt-1 w-full max-h-48 overflow-auto border bg-white rounded shadow text-xs">
                         {masterNames
@@ -1577,15 +1544,20 @@ export default function LoadingRateTable() {
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="addBuyer">Nama Buyer</Label>
+                    <Label htmlFor="addBuyer">Nama Buyer <span className="text-red-500">*</span></Label>
                     <Input
                       id="addBuyer"
                       type="text"
                       value={addVesselForm.buyer}
-                      onChange={(e) => setAddVesselForm(prev => ({ ...prev, buyer: e.target.value }))}
+                      onChange={(e) => {
+                        setAddVesselForm(prev => ({ ...prev, buyer: e.target.value }));
+                        if (e.target.value.trim()) setAddVesselErrors(prev => ({ ...prev, buyer: undefined }));
+                      }}
                       placeholder="Masukkan nama buyer"
                       autoComplete="off"
+                      className={addVesselErrors.buyer ? "border-red-500" : ""}
                     />
+                    {addVesselErrors.buyer && <p className="text-xs text-red-500">{addVesselErrors.buyer}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="addRencanaMuat">Rencana Muat</Label>
@@ -1641,6 +1613,7 @@ export default function LoadingRateTable() {
                           commencedLoadingDate: "",
                           commencedLoadingTime: ""
                         });
+                        setAddVesselErrors({});
                         setAddMonthVesselQuery("");
                         setShowVesselSuggestions(false);
                       }}
@@ -1652,8 +1625,12 @@ export default function LoadingRateTable() {
                       disabled={isAddingVessel}
                       onClick={async () => {
                         const name = (addVesselForm.name || "").trim();
-                        if (!name) return;
-                        
+                        const buyer = (addVesselForm.buyer || "").trim();
+                        const errors: { name?: string; buyer?: string } = {};
+                        if (!name) errors.name = "Nama kapal wajib diisi";
+                        if (!buyer) errors.buyer = "Nama buyer wajib diisi";
+                        if (Object.keys(errors).length > 0) { setAddVesselErrors(errors); return; }
+                        setAddVesselErrors({});
                         setIsAddingVessel(true);
                         
                         try {

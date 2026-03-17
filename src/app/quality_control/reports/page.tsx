@@ -47,7 +47,6 @@ export default function StylishCRUDTable() {
 
   const fetchUsers = async () => {
     setLoading(true);
-    console.log('Fetching data from gcs table...');
     const { data, error } = await supabase
       .from('gcs')
       .select('*')
@@ -58,7 +57,6 @@ export default function StylishCRUDTable() {
       console.error('Error message:', error.message);
       console.error('Error details:', error.details);
     } else {
-      console.log('Fetched data:', data);
       setUsers(data || []);
       setFilteredUsers(data || []);
     }
@@ -140,7 +138,6 @@ export default function StylishCRUDTable() {
 
   const handleTabChange = (tab: string) => {
     // Handle tab change logic here if needed
-    console.log('Tab changed to:', tab);
   };
 
   const exportToExcel = () => {

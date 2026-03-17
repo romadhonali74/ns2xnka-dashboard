@@ -73,6 +73,7 @@ export async function POST(request: NextRequest) {
       .from("vessel_status")
       .upsert({
         vessel_name: uniqueVesselName,
+        base_vessel_name: vesselName,
         month_year: monthYear,
         status: status,
         ritase_rates_total: ritaseRatesTotal
@@ -104,10 +105,33 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await supabase
       .from("vessel_status")
-      .select("*")
+      .select(`
+        *,
+        vessel_details!vessel_status_base_vessel_name_month_year_fkey(
+          buyer,
+          rencana_muat,
+          commenced_loading_date,
+          commenced_loading_time
+        )
+      `)
       .eq("month_year", monthYear);
 
-    return NextResponse.json({ data: data || [] });
+    // Flatten vessel_details into each row for easy consumption
+    const enriched = (data || []).map((row: any) => {
+      const detail = Array.isArray(row.vessel_details)
+        ? row.vessel_details[0]
+        : row.vessel_details;
+      return {
+        ...row,
+        buyer: detail?.buyer ?? null,
+        rencana_muat: detail?.rencana_muat ?? null,
+        commenced_loading_date: detail?.commenced_loading_date ?? null,
+        commenced_loading_time: detail?.commenced_loading_time ?? null,
+        vessel_details: undefined,
+      };
+    });
+
+    return NextResponse.json({ data: enriched });
   } catch (error) {
     return NextResponse.json({ data: [] });
   }
