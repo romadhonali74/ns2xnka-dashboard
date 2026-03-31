@@ -13,20 +13,27 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const year = searchParams.get("year") || "2025";
+    const month = searchParams.get("month"); // optional MM format
+    const monthYearFilter = month ? `${year}-${month}` : `${year}-%`;
+    const useExact = !!month;
     
-    // Get all completed vessels for the year
-    const { data: completedVessels } = await supabase
+    // Get all completed vessels
+    const completedQuery = supabase
       .from("vessel_status")
       .select("vessel_name, month_year, ritase_rates_total")
-      .like("month_year", `${year}-%`)
       .eq("status", "completed");
-    
-    // Get all carry over vessels for the year
-    const { data: carryOverVessels } = await supabase
+    const { data: completedVessels } = await (useExact
+      ? completedQuery.eq("month_year", monthYearFilter)
+      : completedQuery.like("month_year", monthYearFilter));
+
+    // Get all carry over vessels
+    const carryQuery = supabase
       .from("vessel_status")
       .select("vessel_name, month_year, ritase_rates_total")
-      .like("month_year", `${year}-%`)
       .eq("status", "carry_over_to_next_month");
+    const { data: carryOverVessels } = await (useExact
+      ? carryQuery.eq("month_year", monthYearFilter)
+      : carryQuery.like("month_year", monthYearFilter));
     
     let total = 0;
     let breakdown: any = {};

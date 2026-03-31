@@ -10,10 +10,50 @@ const CATEGORIES = ['HMA','PREMIUM','HPM','HARGA JUAL'];
 
 type PriceData = { [kategori: string]: { [key: string]: string } };
 
+function RefreshCountdown({ darkMode }: { darkMode: boolean }) {
+  const [sec, setSec] = useState(300);
+  useEffect(() => {
+    const t = setInterval(() => setSec(p => p > 0 ? p - 1 : 300), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const dk = (l: string, d: string) => darkMode ? d : l;
+  return (
+    <span className={`text-xs ${dk('text-gray-400', 'text-gray-500')}`}>
+      🔄 refresh in {Math.floor(sec / 60)}:{String(sec % 60).padStart(2, '0')}
+    </span>
+  );
+}
+
+const BarTooltip = ({ active, payload, label, tooltipBg, darkMode }: any) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="px-3 py-2 rounded-lg shadow-lg text-xs font-semibold text-white" style={{ backgroundColor: tooltipBg, whiteSpace: 'nowrap', border: darkMode ? '1px solid #334155' : 'none' }}>
+      <div className="text-gray-300 font-normal mb-1">{label}</div>
+      {payload.map((p: any) => (
+        <div key={p.dataKey} style={{ color: p.fill }}>
+          {p.dataKey === 'p1' ? 'Periode I' : 'Periode II'}: {p.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const KapalTooltip = ({ active, payload, tooltipBg, darkMode }: any) => {
+  if (!active || !payload?.length) return null;
+  const d = payload[0];
+  return (
+    <div className="px-3 py-2 rounded-lg shadow-lg text-xs font-semibold text-white" style={{ backgroundColor: tooltipBg, whiteSpace: 'nowrap', border: darkMode ? '1px solid #334155' : 'none' }}>
+      <div className="text-gray-300 font-normal mb-0.5">{d.name}</div>
+      <div>{d.value} kapal</div>
+    </div>
+  );
+};
+
 export default function SalesMarketingPage() {
   const { isSuperAdmin, isLoading } = useUserRole();
   
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [priceData, setPriceData] = useState<PriceData>({});
   const [loading, setLoading] = useState(true);
   const [presentationMode, setPresentationMode] = useState(false);
@@ -52,22 +92,33 @@ export default function SalesMarketingPage() {
   const [kapalLoading, setKapalLoading] = useState<boolean>(false);
   const [donutTab, setDonutTab] = useState<'status' | 'buyer'>('status');
 
+  type SummaryRow2 = { period: string; remarks: string; plan_value: string; realisasi_progress: string; percentage: string };
+  const [summaryData, setSummaryData] = useState<SummaryRow2[]>([]);
+  const [ytdLoading, setYtdLoading] = useState(false);
+
+  // YTD same as Home page
   type YTDRow = { remarks: string; plan_value: number; realisasi_progress: number; percentage: number };
-  type YTDTableData = { remarks: string; plan2025: string; realisasiProgress: string; percentage: string };
   const [ytdData, setYtdData] = useState<YTDRow[]>([]);
   const [ytdYearTotals, setYtdYearTotals] = useState<{ plan: number; real: number }>({ plan: 0, real: 0 });
-  const [ytdLoading, setYtdLoading] = useState(false);
+  const [mtdTotals, setMtdTotals] = useState<{ plan: number; real: number }>({ plan: 0, real: 0 });
+
+  const MONTHS_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
   const format3 = (n: number) => n.toLocaleString('en-US', { useGrouping: true, minimumFractionDigits: 3, maximumFractionDigits: 3 });
 
-  const fetchYtd = async (year: number) => {
+  const fetchYtd = async (year: number, month: number) => {
     setYtdLoading(true);
     try {
-      const [ytdRes, totalRes] = await Promise.all([
+      const ym = `${year}-${String(month).padStart(2,'0')}`;
+      const [ytdRes, totalRes, mtdRes, mtdDaysRes] = await Promise.all([
         fetch('/api/realisasi-pengapalan/ytd-realisasi-pengapalan'),
         fetch(`/api/vessel-status-total?year=${year}`),
+        fetch(`/api/vessel-status-total?year=${year}&month=${String(month).padStart(2,'0')}`),
+        fetch(`/api/daily-operations?month=${ym}`),
       ]);
       if (ytdRes.ok) setYtdData(await ytdRes.json());
+
+      // YTD
       let plan = 0, real = 0;
       if (totalRes.ok) { const r = await totalRes.json(); real = r.data?.total || 0; }
       for (let m = 1; m <= 12; m++) {
@@ -75,12 +126,25 @@ export default function SalesMarketingPage() {
           const res = await fetch(`/api/daily-operations?month=${year}-${String(m).padStart(2,'0')}`);
           if (res.ok) {
             const days = await res.json();
-            const tgt = days.find((d: any) => typeof d.target === 'number')?.target ?? 0;
+            const tgt = days.find((d: any) => typeof d.target === 'number' && d.target > 0)?.target ?? 0;
             plan += tgt;
           }
         } catch { }
       }
       setYtdYearTotals({ plan, real });
+
+      // MTD
+      let mtdReal = 0, mtdPlan = 0;
+      if (mtdRes.ok) { const r = await mtdRes.json(); mtdReal = r.data?.total || 0; }
+      if (mtdDaysRes.ok) {
+        const days = await mtdDaysRes.json();
+        mtdPlan = days.find((d: any) => typeof d.target === 'number' && d.target > 0)?.target ?? 0;
+      }
+      setMtdTotals({ plan: mtdPlan, real: mtdReal });
+
+      // also fetch for new summary view (kept for future use)
+      const res = await fetch('/api/realisasi-summary');
+      if (res.ok) setSummaryData(await res.json());
     } catch { }
     setYtdLoading(false);
   };
@@ -94,14 +158,45 @@ export default function SalesMarketingPage() {
     setKapalLoading(false);
   };
 
-  // Fetch data from database
+  const [cursorHidden, setCursorHidden] = useState(false);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const show = () => {
+      setCursorHidden(false);
+      clearTimeout(timer);
+      if (document.fullscreenElement || presentationMode) {
+        timer = setTimeout(() => setCursorHidden(true), 3000);
+      }
+    };
+    window.addEventListener('mousemove', show);
+    document.addEventListener('fullscreenchange', show);
+    return () => {
+      window.removeEventListener('mousemove', show);
+      document.removeEventListener('fullscreenchange', show);
+      clearTimeout(timer);
+    };
+  }, [presentationMode]);
   useEffect(() => {
     if (!isLoading) {
       fetchPriceData();
       fetchVesselDonut(selectedYear);
-      fetchYtd(selectedYear);
+      fetchYtd(selectedYear, selectedMonth);
     }
-  }, [selectedYear, isLoading]);
+  }, [selectedYear, selectedMonth, isLoading]);
+
+  const [nextRefresh, setNextRefresh] = useState(300);
+
+  // Auto-refresh every 5 minutes — countdown handled by RefreshCountdown component
+  useEffect(() => {
+    if (isLoading) return;
+    const interval = setInterval(() => {
+      fetchPriceData();
+      fetchVesselDonut(selectedYear);
+      fetchYtd(selectedYear, selectedMonth);
+    }, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [selectedYear, selectedMonth, isLoading]);
 
   const fetchPriceData = async () => {
     try {
@@ -163,7 +258,7 @@ export default function SalesMarketingPage() {
   // Point 1: full number format (no abbreviation)
   const fmtLabel = (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: 2 });
 
-  const renderBarChart = (kategori: string, color1: string, color2: string, yMax: number, yMin: number = 0) => {
+  const renderBarChart = (kategori: string, color1: string, color2: string, yMax: number, yMin: number = 0, singlePeriode: boolean = false) => {
     const rawValues1 = getChartDataPeriode(kategori, 1);
     const rawValues2 = getChartDataPeriode(kategori, 2);
     const filledMonths = getFilledMonths(kategori);
@@ -180,18 +275,29 @@ export default function SalesMarketingPage() {
     // dynamic bar size: wider when fewer months, narrower when more
     const axisColor = darkMode ? '#94a3b8' : '#6b7280';
     const barSize = Math.max(6, Math.min(22, Math.floor(200 / displayMonths.length)));
+    const makeLabel = (color: string, offset: number) => ({ viewBox, value }: any) => {
+      if (!value) return <g />;
+      const { x, y, width } = viewBox;
+      return (
+        <text x={x + width / 2} y={y - offset} textAnchor="middle" fill={color} fontSize={16} fontWeight={700}>
+          {fmtLabel(Number(value))}
+        </text>
+      );
+    };
     return (
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={chartData} margin={{ top: 22, right: 8, left: 8, bottom: 4 }} barCategoryGap="20%" barGap={3}>
           <XAxis dataKey="name" tick={{ fontSize: 13, fill: axisColor }} axisLine={false} tickLine={false} />
           <YAxis domain={[yMin, yMax]} hide />
-          <ReTooltip content={<BarTooltip />} cursor={{ fill: darkMode ? '#1e293b' : '#f1f5f9' }} />
-          <Bar dataKey="p1" fill={color1} radius={[3, 3, 0, 0]} maxBarSize={barSize}
-            label={{ position: 'top', fontSize: 12, fontWeight: 700, fill: color1, formatter: (v: any) => fmtLabel(Number(v)) }} />
-          <Bar dataKey="p2" fill={color2} radius={[3, 3, 0, 0]} maxBarSize={barSize}
-            label={{ position: 'top', fontSize: 12, fontWeight: 700, fill: color2, formatter: (v: any) => fmtLabel(Number(v)) }} />
-          <text x="6" y="12" fontSize="12" fill={color1} fontWeight="600">● Periode I</text>
-          <text x="86" y="12" fontSize="12" fill={color2} fontWeight="600">● Periode II</text>
+          <ReTooltip content={(p) => <BarTooltip {...p} tooltipBg={tooltipBg} darkMode={darkMode} />} cursor={{ fill: darkMode ? '#1e293b' : '#f1f5f9' }} />
+          <Bar dataKey="p1" fill={color1} radius={[3, 3, 0, 0]} maxBarSize={barSize} isAnimationActive={false}
+            label={makeLabel(color1, 6)} />
+          {!singlePeriode && (
+            <Bar dataKey="p2" fill={color2} radius={[3, 3, 0, 0]} maxBarSize={barSize} isAnimationActive={false}
+              label={makeLabel(color2, 22)} />
+          )}
+          <text x="6" y="12" fontSize="12" fill={color1} fontWeight="600">● {singlePeriode ? 'Periode' : 'Periode I'}</text>
+          {!singlePeriode && <text x="86" y="12" fontSize="12" fill={color2} fontWeight="600">● Periode II</text>}
         </BarChart>
       </ResponsiveContainer>
     );
@@ -241,7 +347,7 @@ export default function SalesMarketingPage() {
               }}
               onMouseLeave={() => setTooltip(null)}
             />
-            <text x={x} y={ys1[i] + 22} textAnchor="middle" fontSize="13" fontWeight="700" fill={color1}>{fmtLabel(fv1[i])}</text>
+            <text x={x} y={ys1[i] + 22} textAnchor="middle" fontSize="16" fontWeight="700" fill={color1}>{fmtLabel(fv1[i])}</text>
           </g>
         ))}
         {xs.map((x,i) => fv2[i] > 0 && (
@@ -253,19 +359,17 @@ export default function SalesMarketingPage() {
               }}
               onMouseLeave={() => setTooltip(null)}
             />
-            <text x={x} y={ys2[i] - 12} textAnchor="middle" fontSize="13" fontWeight="700" fill={color2}>{fmtLabel(fv2[i])}</text>
+            <text x={x} y={ys2[i] - 12} textAnchor="middle" fontSize="16" fontWeight="700" fill={color2}>{fmtLabel(fv2[i])}</text>
           </g>
         ))}
         {displayMonths.map((monthIdx,i) => <text key={i} x={xs[i]} y="185" textAnchor="middle" fontSize="13" fill={darkMode ? '#94a3b8' : '#6b7280'}>{MONTHS_SHORT[monthIdx]}</text>)}
-        <text x="20" y="13" fontSize="12" fill={color1} fontWeight="600">● Periode I</text>
-        <text x="120" y="13" fontSize="12" fill={color2} fontWeight="600">● Periode II</text>
       </>
     );
   };
 
   return (
     <>
-      <div className="flex h-screen overflow-hidden" style={{ backgroundColor: darkMode ? '#0f172a' : '#f1f2f7' }}>
+      <div className="flex h-screen overflow-hidden" style={{ backgroundColor: darkMode ? '#0f172a' : '#f1f2f7', cursor: cursorHidden ? 'none' : 'default' }}>
         {!presentationMode && <Sidebar />}
 
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -288,6 +392,7 @@ export default function SalesMarketingPage() {
                 </svg>
               </button>
               <h1 className={`text-xl font-bold ${dk('text-[#273240]', 'text-white')}`}>Sales &amp; Marketing</h1>
+              <RefreshCountdown darkMode={darkMode} />
             </div>
             <div className="flex gap-2 items-center">
               {/* Dark Mode Toggle */}
@@ -310,6 +415,14 @@ export default function SalesMarketingPage() {
                   </svg>
                 )}
               </button>
+              <select value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                className={`px-3 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  dk('border-gray-300 bg-white text-gray-700', 'border-gray-600 bg-[#0f172a] text-gray-200')
+                }`}>
+                {MONTHS_FULL.map((m, i) => (
+                  <option key={i} value={i + 1}>{m}</option>
+                ))}
+              </select>
               <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}
                 className={`px-3 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   dk('border-gray-300 bg-white text-gray-700', 'border-gray-600 bg-[#0f172a] text-gray-200')
@@ -330,7 +443,11 @@ export default function SalesMarketingPage() {
             <div className="grid grid-cols-2 gap-3" style={{ minHeight: '220px' }}>
               {([{k:'HMA',yMax:25000,yMin:10000,c1:'#3b82f6',c2:'#f59e0b'},{k:'HARGA JUAL',yMax:100,yMin:0,c1:'#10b981',c2:'#a855f7'}] as {k:string,yMax:number,yMin:number,c1:string,c2:string}[]).map(({k,yMax,yMin,c1,c2}) => (
                 <div key={k} className={`rounded-xl shadow-sm p-3 flex flex-col overflow-hidden ${dk('bg-white', 'bg-[#1e293b]')}`}>
-                  <h2 className={`text-base font-semibold mb-1 flex-shrink-0 ${dk('text-gray-700', 'text-gray-200')}`}>{k}</h2>
+                  <h2 className={`text-base font-semibold mb-0.5 flex-shrink-0 ${dk('text-gray-700', 'text-gray-200')}`}>{k}</h2>
+                  <div className="flex gap-3 mb-1 flex-shrink-0">
+                    <span className="text-xs font-semibold" style={{color:c1}}>● Periode I</span>
+                    <span className="text-xs font-semibold" style={{color:c2}}>● Periode II</span>
+                  </div>
                   <div className="flex-1 min-h-0">
                     <svg width="100%" height="100%" viewBox="0 0 500 195" preserveAspectRatio="xMidYMid meet" style={{display:'block'}}>
                       {renderChart(k, c1, c2, yMax, yMin)}
@@ -346,7 +463,7 @@ export default function SalesMarketingPage() {
               <div className={`rounded-xl shadow-sm p-3 flex flex-col overflow-hidden ${dk('bg-white', 'bg-[#1e293b]')}`}>
                 <h2 className={`text-base font-semibold mb-1 flex-shrink-0 ${dk('text-gray-700', 'text-gray-200')}`}>PREMIUM</h2>
                 <div className="flex-1 min-h-0">
-                  {renderBarChart('PREMIUM', '#f43f5e', '#fb923c', 100, 0)}
+                  {renderBarChart('PREMIUM', '#f43f5e', '#fb923c', 100, 0, true)}
                 </div>
               </div>
               {/* HPM */}
@@ -438,26 +555,42 @@ export default function SalesMarketingPage() {
                                 <Pie
                                   key={animKey}
                                   data={activeData}
-                                  cx="50%" cy="50%"
+                                  cx="50%" cy="45%"
                                   innerRadius="48%" outerRadius="72%"
                                   dataKey="value"
                                   paddingAngle={2}
                                   labelLine={false}
-                                  label={false}
-                                  isAnimationActive
-                                  animationBegin={0}
-                                  animationDuration={600}
-                                  animationEasing="ease-out"
+                                  label={({ cx, cy, midAngle, innerRadius, outerRadius, value, index }: any) => {
+                                    const RADIAN = Math.PI / 180;
+                                    const sin = Math.sin(-midAngle * RADIAN);
+                                    const cos = Math.cos(-midAngle * RADIAN);
+                                    const stagger = index % 2 === 0 ? 0 : 20;
+                                    const r1 = outerRadius + 8;
+                                    const r2 = outerRadius + 22 + stagger;
+                                    const mx = cx + r2 * cos;
+                                    const my = cy + r2 * sin;
+                                    const ex = mx + (cos >= 0 ? 10 : -10);
+                                    const ey = my;
+                                    const anchor = cos >= 0 ? 'start' : 'end';
+                                    const color = activeData[index]?.color;
+                                    return (
+                                      <g>
+                                        <path d={`M${cx + r1 * cos},${cy + r1 * sin} L${mx},${my} L${ex},${ey}`} stroke={color} fill="none" strokeWidth={1.2} />
+                                        <circle cx={ex} cy={ey} r={2} fill={color} />
+                                        <text x={ex + (cos >= 0 ? 4 : -4)} y={ey} fill={color} textAnchor={anchor} dominantBaseline="central" fontSize={20} fontWeight={700}>{value}</text>
+                                      </g>
+                                    );
+                                  }}
+                                  isAnimationActive={false}
                                 >
                                   {activeData.map((d, i) => <Cell key={i} fill={d.color} />)}
                                 </Pie>
-                                <ReTooltip content={<KapalTooltip />} />
+                                <ReTooltip content={(p) => <KapalTooltip {...p} tooltipBg={tooltipBg} darkMode={darkMode} />} />
+                                <text x="50%" y="42%" textAnchor="middle" dominantBaseline="central" fontSize={18} fontWeight={800} fill={darkMode ? '#f1f5f9' : '#273240'}>{activeTotal}</text>
+                                <text x="50%" y="42%" dy={18} textAnchor="middle" dominantBaseline="auto" fontSize={10} fill={darkMode ? '#64748b' : '#9ca3af'}>Total Kapal</text>
                               </PieChart>
                             </ResponsiveContainer>
-                            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                              <span className={`text-xl font-extrabold leading-tight ${dk('text-gray-700', 'text-gray-100')}`}>{activeTotal}</span>
-                              <span className={`text-[10px] ${dk('text-gray-400', 'text-gray-500')}`}>Total Kapal</span>
-                            </div>
+
                           </>
                         )}
                       </div>
@@ -473,18 +606,13 @@ export default function SalesMarketingPage() {
                                   <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
                                   <span className={`text-xs font-medium ${dk('text-gray-600', 'text-gray-300')}`}>{s.label}</span>
                                 </div>
-                                <span className={`text-sm font-bold pl-[18px] ${dk('text-gray-800', 'text-gray-100')}`}>
-                                  {grouped[s.key as keyof typeof grouped]}
-                                </span>
+  
                               </div>
                             ))
                           : buyerData.map(d => (
-                              <div key={d.name} className="flex items-center justify-between gap-1">
-                                <div className="flex items-center gap-1.5 min-w-0">
-                                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: d.color }} />
-                                  <span className={`text-xs break-words min-w-0 ${dk('text-gray-600', 'text-gray-300')}`}>{d.name}</span>
-                                </div>
-                                <span className={`text-xs font-bold flex-shrink-0 ${dk('text-gray-800', 'text-gray-100')}`}>{d.value}</span>
+                              <div key={d.name} className="flex items-center gap-1.5 min-w-0">
+                                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: d.color }} />
+                                <span className={`text-xs break-words min-w-0 ${dk('text-gray-600', 'text-gray-300')}`}>{d.name}</span>
                               </div>
                             ))
                         }
@@ -495,17 +623,27 @@ export default function SalesMarketingPage() {
               })()}
             </div>
 
-            {/* YTD Remarks Table — sama struktur dengan Home page */}
+            {/* YTD Remarks Table — same as Home page */}
             {(() => {
-              const tableData: YTDTableData[] = ytdData
-                .filter(row => row.remarks !== 'YTD Loaded Into Barge/Vessel')
-                .map(row => {
-                  if (row.remarks === 'YTD Completed Into Barge/Vessel') {
-                    const pct = ytdYearTotals.plan > 0 ? (ytdYearTotals.real / ytdYearTotals.plan) * 100 : 0;
-                    return { remarks: row.remarks, plan2025: `${format3(ytdYearTotals.plan)} WMT`, realisasiProgress: `${format3(ytdYearTotals.real)} WMT`, percentage: `${pct.toFixed(2)}%` };
-                  }
-                  return { remarks: row.remarks, plan2025: `${format3(row.plan_value)} WMT`, realisasiProgress: `${format3(row.realisasi_progress)} WMT`, percentage: `${row.percentage.toFixed(2)}%` };
-                });
+              const tableData = [
+                ...ytdData
+                  .filter(row => row.remarks !== 'YTD Loaded Into Barge/Vessel')
+                  .map(row => {
+                    if (row.remarks === 'YTD Completed Into Barge/Vessel') {
+                      const planVal = ytdYearTotals.plan;
+                      const realVal = ytdYearTotals.real;
+                      const pct = planVal > 0 ? (realVal / planVal) * 100 : 0;
+                      return { remarks: row.remarks, plan: `${format3(planVal)} WMT`, realisasi: `${format3(realVal)} WMT`, percentage: `${pct.toFixed(2)}%` };
+                    }
+                    return { remarks: row.remarks, plan: `${format3(row.plan_value)} WMT`, realisasi: `${format3(row.realisasi_progress)} WMT`, percentage: `${row.percentage.toFixed(2)}%` };
+                  }),
+                {
+                  remarks: 'MTD Completed Into Barge/Vessel',
+                  plan: `${format3(mtdTotals.plan)} WMT`,
+                  realisasi: `${format3(mtdTotals.real)} WMT`,
+                  percentage: mtdTotals.plan > 0 ? `${((mtdTotals.real / mtdTotals.plan) * 100).toFixed(2)}%` : '0.00%',
+                },
+              ];
               return (
                 <div className={`rounded-xl shadow-sm overflow-hidden flex-shrink-0 ${dk('bg-white', 'bg-[#1e293b]')}`}>
                   <div className="bg-[#92d050] px-4 py-3">
@@ -518,19 +656,60 @@ export default function SalesMarketingPage() {
                   </div>
                   <div>
                     {ytdLoading ? (
-                      <div className={`px-4 py-3 text-sm ${dk('text-gray-400', 'text-gray-500')}`}>Loading...</div>
+                      <div className={`px-4 py-3 text-sm ${dk('text-gray-400','text-gray-500')}`}>Loading...</div>
                     ) : tableData.map((row, i) => (
-                      <div key={i} className={`grid grid-cols-4 px-4 py-3 border-b last:border-b-0 ${dk('border-[#dedede]', 'border-gray-700')}`}>
-                        <div className={`text-sm ${dk('text-[#273240]', 'text-gray-200')}`}>{row.remarks}</div>
-                        <div className={`text-sm ${dk('text-[#273240]', 'text-gray-200')}`}>{row.plan2025}</div>
-                        <div className={`text-sm ${dk('text-[#273240]', 'text-gray-200')}`}>{row.realisasiProgress}</div>
-                        <div className={`text-sm ${dk('text-[#273240]', 'text-gray-200')}`}>{row.percentage}</div>
+                      <div key={i} className={`grid grid-cols-4 px-4 py-3 border-b last:border-b-0 ${dk('border-[#dedede]','border-gray-700')}`}>
+                        <div className={`text-sm ${dk('text-[#273240]','text-gray-200')}`}>{row.remarks}</div>
+                        <div className={`text-sm ${dk('text-[#273240]','text-gray-200')}`}>{row.plan}</div>
+                        <div className={`text-sm ${dk('text-[#273240]','text-gray-200')}`}>{row.realisasi}</div>
+                        <div className={`text-sm ${dk('text-[#273240]','text-gray-200')}`}>{row.percentage}</div>
                       </div>
                     ))}
                   </div>
                 </div>
               );
             })()}
+
+            {/* NEW summary table (MTD+YTD from realisasi_summary view) — commented for future use
+            {(() => {
+              const mtdRows = summaryData.filter(r => r.period === 'MTD');
+              const ytdRows = summaryData.filter(r => r.period === 'YTD');
+              const fmtVal = (v: string) => v ? `${format3(parseFloat(v))} WMT` : '-';
+              const fmtPct = (v: string) => v ? `${parseFloat(v).toFixed(2)}%` : '-';
+              return (
+                <div className={`rounded-xl shadow-sm overflow-hidden flex-shrink-0 ${dk('bg-white', 'bg-[#1e293b]')}`}>
+                  <div className="bg-[#92d050] px-4 py-3">
+                    <div className="grid grid-cols-7 text-sm font-medium text-[#273240]">
+                      <div className="col-span-1">Remarks</div>
+                      <div className="col-span-1 text-center">MTD Plan</div>
+                      <div className="col-span-1 text-center">MTD Realisasi</div>
+                      <div className="col-span-1 text-center">MTD %</div>
+                      <div className="col-span-1 text-center">YTD Plan</div>
+                      <div className="col-span-1 text-center">YTD Realisasi</div>
+                      <div className="col-span-1 text-center">YTD %</div>
+                    </div>
+                  </div>
+                  <div>
+                    {ytdLoading ? (
+                      <div className={`px-4 py-3 text-sm ${dk('text-gray-400', 'text-gray-500')}`}>Loading...</div>
+                    ) : mtdRows.map((mtd, i) => {
+                      const ytd = ytdRows[i];
+                      return (
+                        <div key={i} className={`grid grid-cols-7 px-4 py-3 border-b last:border-b-0 ${dk('border-[#dedede]', 'border-gray-700')}`}>
+                          <div className={`text-sm col-span-1 ${dk('text-[#273240]', 'text-gray-200')}`}>{mtd.remarks}</div>
+                          <div className={`text-sm col-span-1 text-center ${dk('text-[#273240]', 'text-gray-200')}`}>{fmtVal(mtd.plan_value)}</div>
+                          <div className={`text-sm col-span-1 text-center ${dk('text-[#273240]', 'text-gray-200')}`}>{fmtVal(mtd.realisasi_progress)}</div>
+                          <div className={`text-sm col-span-1 text-center ${dk('text-[#273240]', 'text-gray-200')}`}>{fmtPct(mtd.percentage)}</div>
+                          <div className={`text-sm col-span-1 text-center ${dk('text-[#273240]', 'text-gray-200')}`}>{ytd ? fmtVal(ytd.plan_value) : '-'}</div>
+                          <div className={`text-sm col-span-1 text-center ${dk('text-[#273240]', 'text-gray-200')}`}>{ytd ? fmtVal(ytd.realisasi_progress) : '-'}</div>
+                          <div className={`text-sm col-span-1 text-center ${dk('text-[#273240]', 'text-gray-200')}`}>{ytd ? fmtPct(ytd.percentage) : '-'}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()} */}
 
           </div>
           )}

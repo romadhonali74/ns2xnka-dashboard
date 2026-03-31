@@ -118,8 +118,14 @@ export default function MasterDataSalesPage() {
 
   const handleInputChange = (periode: 'periode1' | 'periode2', key: string, value: string) => {
     const regex = /^\d*\.?\d{0,2}$/;
-    if (value === '' || regex.test(value))
-      setFormData({ ...formData, [periode]: { ...formData[periode], [key]: value } });
+    if (value === '' || regex.test(value)) {
+      const updated = { ...formData, [periode]: { ...formData[periode], [key]: value } };
+      // PREMIUM periode2 always mirrors periode1
+      if (key === 'premium' && periode === 'periode1') {
+        updated.periode2 = { ...updated.periode2, premium: value };
+      }
+      setFormData(updated);
+    }
   };
 
   const handleSave = async () => {
@@ -154,20 +160,25 @@ export default function MasterDataSalesPage() {
     try {
       setSaving(true);
       for (let month = 1; month <= 12; month++) {
-        for (let periode = 1; periode <= 2; periode++) {
-          const key = `${month}_${periode}`;
-          const hma = editData.HMA?.[key] || '';
-          const premium = editData.PREMIUM?.[key] || '';
-          const hpm = editData.HPM?.[key] || '';
-          const harga_jual = editData['HARGA JUAL']?.[key] || '';
-          if (hma || premium || hpm || harga_jual) {
-            await fetch('/api/price-monthly', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ year: selectedYear, month, [`periode${periode}`]: { hma: hma || '0', premium: premium || '0', hpm: hpm || '0', harga_jual: harga_jual || '0' } }),
-            });
-          }
-        }
+        const hasEdit = [1, 2].some(p => {
+          const key = `${month}_${p}`;
+          return CATEGORIES.some(kat => editData[kat]?.[key] !== undefined);
+        });
+        if (!hasEdit) continue;
+
+        const getVal = (kat: string, p: number) =>
+          editData[kat]?.[`${month}_${p}`] ?? priceData[kat]?.[`${month}_${p}`] ?? '0';
+
+        await fetch('/api/price-monthly', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            year: selectedYear,
+            month,
+            periode1: { hma: getVal('HMA',1), premium: getVal('PREMIUM',1), hpm: getVal('HPM',1), harga_jual: getVal('HARGA JUAL',1) },
+            periode2: { hma: getVal('HMA',2), premium: getVal('PREMIUM',2), hpm: getVal('HPM',2), harga_jual: getVal('HARGA JUAL',2) },
+          }),
+        });
       }
       await fetchPriceData();
       setEditMode(false);
@@ -336,10 +347,18 @@ export default function MasterDataSalesPage() {
                   </div>
                   {([['HMA','hma'],['PREMIUM','premium'],['HPM','hpm'],['HARGA JUAL','harga_jual']] as [string,string][]).map(([label, key]) => (
                     <div key={key}>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        {label}{key === 'premium' ? <span className="ml-2 text-xs text-blue-500 font-normal">(mengikuti Periode I)</span> : ''}
+                      </label>
                       <input type="text" value={formData.periode2[key as keyof typeof formData.periode2]}
-                        onChange={(e) => handleInputChange('periode2', key, e.target.value)}
-                        placeholder="0.00" className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" />
+                        onChange={(e) => key !== 'premium' ? handleInputChange('periode2', key, e.target.value) : undefined}
+                        readOnly={key === 'premium'}
+                        placeholder="0.00"
+                        className={`w-full px-3 py-2 border-2 rounded-xl focus:outline-none ${
+                          key === 'premium'
+                            ? 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
+                            : 'border-gray-200 focus:border-blue-500'
+                        }`} />
                     </div>
                   ))}
                 </>
