@@ -449,7 +449,7 @@ export default function SalesMarketingPage() {
                     <span className="text-xs font-semibold" style={{color:c2}}>● Periode II</span>
                   </div>
                   <div className="flex-1 min-h-0">
-                    <svg width="100%" height="100%" viewBox="0 0 500 195" preserveAspectRatio="xMidYMid meet" style={{display:'block'}}>
+                    <svg width="100%" height="100%" viewBox="-30 -10 560 225" preserveAspectRatio="xMidYMid meet" style={{display:'block'}}>
                       {renderChart(k, c1, c2, yMax, yMin)}
                     </svg>
                   </div>
