@@ -11,8 +11,11 @@ const CATEGORIES = ['HMA','PREMIUM','HPM','HARGA JUAL'];
 type PriceData = { [kategori: string]: { [key: string]: string } };
 
 export default function MasterDataSalesPage() {
-  const { isAdmin, bureau, isSuperAdmin, isLoading } = useUserRole();
+  const { isSuperAdmin, isLoading, crudPermissions } = useUserRole();
   const router = useRouter();
+
+  const crud = crudPermissions['master-data-sales'];
+  const isAuthorized = isSuperAdmin || !!(crud?.canCreate || crud?.canEdit);
 
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [priceData, setPriceData] = useState<PriceData>({});
@@ -34,8 +37,6 @@ export default function MasterDataSalesPage() {
   const isDragging = useRef(false);
   const startX = useRef(0);
   const scrollLeftRef = useRef(0);
-
-  const isAuthorized = isSuperAdmin || (isAdmin && bureau?.toLowerCase() === 'marketing');
 
   // Redirect unauthorized users
   useEffect(() => {
