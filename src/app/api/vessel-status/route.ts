@@ -105,19 +105,11 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await supabase
       .from("vessel_status")
-      .select(`
-        *,
-        vessel_details!vessel_status_base_vessel_name_month_year_fkey(
-          buyer,
-          rencana_muat,
-          commenced_loading_date,
-          commenced_loading_time
-        )
-      `)
+      .select(`*, vessel_details(buyer, rencana_muat, commenced_loading_date, commenced_loading_time)`)
       .eq("month_year", monthYear);
 
-    // Flatten vessel_details into each row for easy consumption
-    const enriched = (data || []).map((row: any) => {
+    const rows = error ? [] : (data || []);
+    const enriched = rows.map((row: any) => {
       const detail = Array.isArray(row.vessel_details)
         ? row.vessel_details[0]
         : row.vessel_details;
@@ -130,6 +122,15 @@ export async function GET(request: NextRequest) {
         vessel_details: undefined,
       };
     });
+
+    // If join failed, fallback to plain vessel_status data
+    if (error) {
+      const { data: fallback } = await supabase
+        .from("vessel_status")
+        .select("*")
+        .eq("month_year", monthYear);
+      return NextResponse.json({ data: fallback || [] });
+    }
 
     return NextResponse.json({ data: enriched });
   } catch (error) {

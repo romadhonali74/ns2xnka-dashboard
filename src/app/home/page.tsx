@@ -101,6 +101,7 @@ export default function Dashboard() {
     stockAwal: 0, produksiMining: 0, produksiQc: 0, penjualan: 0 
   });
   const [ytdYearTotals, setYtdYearTotals] = useState<{ plan: number; real: number }>({ plan: 0, real: 0 });
+  const [mountKey] = useState(() => Date.now());
   const [totalsLoading, setTotalsLoading] = useState<boolean>(false);
   const [realisasiLoading, setRealisasiLoading] = useState<boolean>(false);
   const [targetLoading, setTargetLoading] = useState<boolean>(false);
@@ -137,6 +138,7 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchAllData = async () => {
       setError(null);
+      setIsLoadingData(true);
       try {
         const monthlyResponse = await fetch("/api/realisasi-pengapalan");
         if (!monthlyResponse.ok) {
@@ -165,7 +167,7 @@ export default function Dashboard() {
       }
     };
     fetchAllData();
-  }, [isLoadingData]);
+  }, []); // run once on mount
 
   const fetchDailyMonth = async (ym: string) => {
     const res = await fetch(`/api/daily-operations?month=${encodeURIComponent(ym)}`, { headers: { Accept: "application/json" } });
@@ -536,7 +538,7 @@ export default function Dashboard() {
         // Individual loading states are now set in their respective promises
       }
     })();
-  }, [filterYear, filterMonth, totalsMode]);
+  }, [filterYear, filterMonth, totalsMode, mountKey]);
 
   // Cache data after state updates
   useEffect(() => {

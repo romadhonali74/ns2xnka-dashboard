@@ -318,10 +318,41 @@ export default function SalesMarketingPage() {
     const id1 = `grad1-${kategori.replace(' ','-')}`;
     const id2 = `grad2-${kategori.replace(' ','-')}`;
     const baseY = 165;
-    const area1 = xs.map((x,i)=>`${x},${ys1[i]}`).join(' ');
-    const area2 = xs.map((x,i)=>`${x},${ys2[i]}`).join(' ');
-    const poly1 = `${xs[0]},${baseY} ${area1} ${xs[xs.length-1]},${baseY}`;
-    const poly2 = `${xs[0]},${baseY} ${area2} ${xs[xs.length-1]},${baseY}`;
+    // Build path segments — skip points with value 0 to avoid line dropping to bottom
+    const buildPath = (fv: number[], ys: number[]) => {
+      const segments: string[] = [];
+      let current = '';
+      fv.forEach((v, i) => {
+        if (v > 0) {
+          current += current === '' ? `M ${xs[i]} ${ys[i]}` : ` L ${xs[i]} ${ys[i]}`;
+        } else {
+          if (current !== '') { segments.push(current); current = ''; }
+        }
+      });
+      if (current !== '') segments.push(current);
+      return segments;
+    };
+    const buildArea = (fv: number[], ys: number[]) => {
+      // Only draw area for consecutive non-zero segments
+      const segs: string[] = [];
+      let start = -1;
+      fv.forEach((v, i) => {
+        if (v > 0 && start === -1) start = i;
+        if ((v === 0 || i === fv.length - 1) && start !== -1) {
+          const end = v > 0 ? i : i - 1;
+          if (end >= start) {
+            const pts = xs.slice(start, end + 1).map((x, j) => `${x},${ys[start + j]}`).join(' ');
+            segs.push(`${xs[start]},${baseY} ${pts} ${xs[end]},${baseY}`);
+          }
+          start = -1;
+        }
+      });
+      return segs;
+    };
+    const paths1 = buildPath(fv1, ys1);
+    const paths2 = buildPath(fv2, ys2);
+    const areas1 = buildArea(fv1, ys1);
+    const areas2 = buildArea(fv2, ys2);
     return (
       <>
         <defs>
@@ -334,10 +365,10 @@ export default function SalesMarketingPage() {
             <stop offset="100%" stopColor={color2} stopOpacity="0" />
           </linearGradient>
         </defs>
-        <polygon fill={`url(#${id1})`} points={poly1} />
-        <polygon fill={`url(#${id2})`} points={poly2} />
-        <polyline fill="none" stroke={color1} strokeWidth="2.5" points={xs.map((x,i)=>`${x},${ys1[i]}`).join(' ')}/>
-        <polyline fill="none" stroke={color2} strokeWidth="2.5" points={xs.map((x,i)=>`${x},${ys2[i]}`).join(' ')}/>
+        {areas1.map((pts, i) => <polygon key={`a1-${i}`} fill={`url(#${id1})`} points={pts} />)}
+        {areas2.map((pts, i) => <polygon key={`a2-${i}`} fill={`url(#${id2})`} points={pts} />)}
+        {paths1.map((d, i) => <path key={`l1-${i}`} fill="none" stroke={color1} strokeWidth="2.5" d={d} />)}
+        {paths2.map((d, i) => <path key={`l2-${i}`} fill="none" stroke={color2} strokeWidth="2.5" d={d} />)}
         {xs.map((x,i) => fv1[i] > 0 && (
           <g key={`p1-${i}`}>
             <circle cx={x} cy={ys1[i]} r="5" fill={color1} style={{cursor:'pointer'}}
@@ -505,7 +536,11 @@ export default function SalesMarketingPage() {
                   buyerMap.set(b, (buyerMap.get(b) ?? 0) + r.jumlah_kapal);
                 });
                 const buyerData = Array.from(buyerMap.entries())
-                  .sort((a, b) => b[1] - a[1])
+                  .sort((a, b) => {
+                    if (a[0] === 'Buyer Not Assigned') return 1;
+                    if (b[0] === 'Buyer Not Assigned') return -1;
+                    return b[1] - a[1];
+                  })
                   .map(([name, value], i) => ({
                     name, value,
                     color: name === 'Buyer Not Assigned' ? '#9ca3af' : BUYER_COLORS[i % BUYER_COLORS.length],
@@ -556,7 +591,7 @@ export default function SalesMarketingPage() {
                                   key={animKey}
                                   data={activeData}
                                   cx="50%" cy="45%"
-                                  innerRadius="48%" outerRadius="72%"
+                                  innerRadius="35%" outerRadius="55%"
                                   dataKey="value"
                                   paddingAngle={2}
                                   labelLine={false}
