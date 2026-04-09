@@ -646,12 +646,18 @@ export default function SalesMarketingPage() {
                           </>
                         )}
                         </div>
-                        {donutTab === 'status' && grouped.carry_over > 0 && (
+                        {donutTab === 'status' ? (
                           <div className={`flex items-center justify-center gap-2 py-1 flex-shrink-0`}>
-                            <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: '#a855f7' }} />
-                            <span className={`text-xs font-medium ${dk('text-gray-600', 'text-gray-300')}`}>Carry Over:</span>
-                            <span className={`text-sm font-bold ${dk('text-gray-800', 'text-gray-100')}`}>{grouped.carry_over}</span>
+                            {grouped.carry_over > 0 ? (
+                              <>
+                                <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: '#a855f7' }} />
+                                <span className={`text-xs font-medium ${dk('text-gray-600', 'text-gray-300')}`}>Carry Over:</span>
+                                <span className={`text-sm font-bold ${dk('text-gray-800', 'text-gray-100')}`}>{grouped.carry_over}</span>
+                              </>
+                            ) : <span className="text-xs">&nbsp;</span>}
                           </div>
+                        ) : (
+                          <div className="py-1 flex-shrink-0"><span className="text-xs">&nbsp;</span></div>
                         )}
                       </div>
 
