@@ -89,6 +89,7 @@ export default function SalesMarketingPage() {
   const [tooltip, setTooltip] = useState<{ x: number; y: number; label: string; value: string } | null>(null);
   type SummaryRow = { month_year: string; status: string; buyer: string | null; jumlah_kapal: number };
   const [summaryRows, setSummaryRows] = useState<SummaryRow[]>([]);
+  const [carryOverRows, setCarryOverRows] = useState<SummaryRow[]>([]);
   const [kapalLoading, setKapalLoading] = useState<boolean>(false);
   const [donutTab, setDonutTab] = useState<'status' | 'buyer'>('status');
 
@@ -149,11 +150,21 @@ export default function SalesMarketingPage() {
     setYtdLoading(false);
   };
 
-  const fetchVesselDonut = async (year: number) => {
+  const fetchVesselDonut = async (year: number, month: number) => {
     setKapalLoading(true);
     try {
-      const res = await fetch(`/api/vessel-summary-status?year=${year}`);
-      if (res.ok) setSummaryRows(await res.json());
+      // Fetch current year data for completed/in_progress
+      const [currentRes, prevRes] = await Promise.all([
+        fetch(`/api/vessel-summary-status?year=${year}`),
+        // Fetch previous month for carry_over
+        (() => {
+          const prevMonth = month === 1 ? 12 : month - 1;
+          const prevYear = month === 1 ? year - 1 : year;
+          return fetch(`/api/vessel-summary-status?year=${prevYear}&month=${String(prevMonth).padStart(2,'0')}`);
+        })()
+      ]);
+      if (currentRes.ok) setSummaryRows(await currentRes.json());
+      if (prevRes.ok) setCarryOverRows(await prevRes.json());
     } catch { }
     setKapalLoading(false);
   };
@@ -180,7 +191,7 @@ export default function SalesMarketingPage() {
   useEffect(() => {
     if (!isLoading) {
       fetchPriceData();
-      fetchVesselDonut(selectedYear);
+      fetchVesselDonut(selectedYear, selectedMonth);
       fetchYtd(selectedYear, selectedMonth);
     }
   }, [selectedYear, selectedMonth, isLoading]);
@@ -192,7 +203,7 @@ export default function SalesMarketingPage() {
     if (isLoading) return;
     const interval = setInterval(() => {
       fetchPriceData();
-      fetchVesselDonut(selectedYear);
+      fetchVesselDonut(selectedYear, selectedMonth);
       fetchYtd(selectedYear, selectedMonth);
     }, 5 * 60 * 1000);
     return () => clearInterval(interval);
@@ -521,7 +532,11 @@ export default function SalesMarketingPage() {
                   const s = r.status?.toLowerCase() ?? '';
                   if (s === 'completed') grouped.completed += r.jumlah_kapal;
                   else if (IN_PROGRESS_KEYS.has(s)) grouped.in_progress += r.jumlah_kapal;
-                  else if (CARRY_OVER_KEYS.has(s))  grouped.carry_over  += r.jumlah_kapal;
+                });
+                // carry_over: only from previous month
+                carryOverRows.forEach(r => {
+                  const s = r.status?.toLowerCase() ?? '';
+                  if (CARRY_OVER_KEYS.has(s)) grouped.carry_over += r.jumlah_kapal;
                 });
                 const statusData = STATUS_3
                   .filter(s => s.key !== 'carry_over')
