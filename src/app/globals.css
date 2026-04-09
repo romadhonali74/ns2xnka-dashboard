@@ -27,8 +27,39 @@ body {
 }
 
 html {
-  color-scheme: light;
+  color-scheme: light only;
   overflow-x: hidden;
+}
+
+/* Prevent Samsung/Tizen night mode & forced color inversion */
+@media (forced-colors: active) {
+  * {
+    forced-color-adjust: none;
+  }
+}
+
+/* Prevent OS-level dark mode from overriding app colors */
+@media (prefers-color-scheme: dark) {
+  html {
+    color-scheme: light only;
+  }
+}
+
+/* Samsung Night Mode / Eye Comfort protection */
+* {
+  -webkit-forced-color-adjust: none;
+  forced-color-adjust: none;
+}
+
+button, select, input, svg, span, div {
+  -webkit-text-fill-color: unset;
+}
+
+/* Block any OS/browser level color filter or inversion */
+#__next, body > div:first-child {
+  filter: none !important;
+  -webkit-filter: none !important;
+  color-scheme: light only !important;
 }
 
 /* Custom cursor for all buttons and clickable elements */

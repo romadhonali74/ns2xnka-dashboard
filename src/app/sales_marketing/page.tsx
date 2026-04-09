@@ -524,6 +524,7 @@ export default function SalesMarketingPage() {
                   else if (CARRY_OVER_KEYS.has(s))  grouped.carry_over  += r.jumlah_kapal;
                 });
                 const statusData = STATUS_3
+                  .filter(s => s.key !== 'carry_over')
                   .map(s => ({ name: s.label, value: grouped[s.key as keyof typeof grouped], color: s.color }))
                   .filter(d => d.value > 0);
                 const statusTotal = statusData.reduce((s, d) => s + d.value, 0);
@@ -576,7 +577,8 @@ export default function SalesMarketingPage() {
                     {/* Chart (kiri) + Legend (kanan) */}
                     <div className="flex-1 min-h-0 flex flex-row gap-3">
                       {/* Donut chart — mengambil sisa ruang */}
-                      <div className="flex-1 min-w-0 relative">
+                      <div className="flex-1 min-w-0 relative flex flex-col">
+                        <div className="flex-1 relative">
                         {kapalLoading ? (
                           <div className="w-full h-full flex items-center justify-center">
                             <div className={`w-20 h-20 animate-pulse rounded-full ${dk('bg-gray-100', 'bg-gray-700')}`} />
@@ -591,7 +593,7 @@ export default function SalesMarketingPage() {
                                   key={animKey}
                                   data={activeData}
                                   cx="50%" cy="45%"
-                                  innerRadius="35%" outerRadius="55%"
+                                  innerRadius="38%" outerRadius="60%"
                                   dataKey="value"
                                   paddingAngle={2}
                                   labelLine={false}
@@ -628,6 +630,14 @@ export default function SalesMarketingPage() {
 
                           </>
                         )}
+                        </div>
+                        {donutTab === 'status' && grouped.carry_over > 0 && (
+                          <div className={`flex items-center justify-center gap-2 py-1 flex-shrink-0`}>
+                            <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: '#a855f7' }} />
+                            <span className={`text-xs font-medium ${dk('text-gray-600', 'text-gray-300')}`}>Carry Over:</span>
+                            <span className={`text-sm font-bold ${dk('text-gray-800', 'text-gray-100')}`}>{grouped.carry_over}</span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Legend — lebar tetap di kanan */}
@@ -635,13 +645,12 @@ export default function SalesMarketingPage() {
                         donutTab === 'buyer' ? 'overflow-y-auto' : ''
                       }`}>
                         {donutTab === 'status'
-                          ? STATUS_3.map(s => (
+                          ? STATUS_3.filter(s => s.key !== 'carry_over').map(s => (
                               <div key={s.key} className="flex flex-col gap-0.5">
                                 <div className="flex items-center gap-1.5">
                                   <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
                                   <span className={`text-xs font-medium ${dk('text-gray-600', 'text-gray-300')}`}>{s.label}</span>
                                 </div>
-  
                               </div>
                             ))
                           : buyerData.map(d => (
