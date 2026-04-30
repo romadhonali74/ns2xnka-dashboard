@@ -421,7 +421,16 @@ export default function SalesMarketingPage() {
             <div className="flex items-center gap-3">
               {/* Presentation Mode Toggle */}
               <button
-                onClick={() => setPresentationMode(p => !p)}
+                onClick={() => {
+                  if (!presentationMode) {
+                    document.documentElement.requestFullscreen?.() || (document.documentElement as any).webkitRequestFullscreen?.();
+                  } else {
+                    if (document.fullscreenElement || (document as any).webkitFullscreenElement) {
+                      document.exitFullscreen?.() || (document as any).webkitExitFullscreen?.();
+                    }
+                  }
+                  setPresentationMode(p => !p);
+                }}
                 title={presentationMode ? 'Exit Presentation Mode' : 'Presentation Mode'}
                 className={`p-2 rounded-lg border transition-all cursor-pointer ${
                   presentationMode
