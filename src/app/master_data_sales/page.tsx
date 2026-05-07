@@ -6,7 +6,17 @@ import { useUserRole } from "../hooks/useUserRole";
 import { useRouter } from "next/navigation";
 
 const MONTHS = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-const CATEGORIES = ['HMA','PREMIUM','HPM','HARGA JUAL'];
+const CATEGORIES = ['HMA','HMA - Ni','HMA - Co','HMA - Fe','HMA - Cr','PREMIUM','HPM','HARGA JUAL'];
+const CATEGORY_DB_MAP: Record<string, string> = {
+  'HMA': 'hma', 'HMA - Ni': 'hma_ni', 'HMA - Co': 'hma_co', 'HMA - Fe': 'hma_fe', 'HMA - Cr': 'hma_cr',
+  'PREMIUM': 'premium', 'HPM': 'hpm', 'HARGA JUAL': 'harga_jual'
+};
+const CATEGORY_GROUPS = [
+  { label: 'HMA', items: ['HMA - Ni','HMA - Co','HMA - Fe','HMA - Cr'] },
+  { label: null, items: ['PREMIUM'] },
+  { label: null, items: ['HPM'] },
+  { label: null, items: ['HARGA JUAL'] },
+];
 
 type PriceData = { [kategori: string]: { [key: string]: string } };
 
@@ -29,8 +39,8 @@ export default function MasterDataSalesPage() {
   const [formData, setFormData] = useState({
     year: new Date().getFullYear(),
     month: 1,
-    periode1: { hma: '', premium: '', hpm: '', harga_jual: '' },
-    periode2: { hma: '', premium: '', hpm: '', harga_jual: '' }
+    periode1: { hma: '', hma_ni: '', hma_co: '', hma_fe: '', hma_cr: '', premium: '', hpm: '', harga_jual: '' },
+    periode2: { hma: '', hma_ni: '', hma_co: '', hma_fe: '', hma_cr: '', premium: '', hpm: '', harga_jual: '' }
   });
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -70,14 +80,11 @@ export default function MasterDataSalesPage() {
       const formatted: PriceData = {};
       data.forEach((row: any) => {
         const key = `${row.month}_${row.periode}`;
-        if (!formatted.HMA) formatted.HMA = {};
-        if (!formatted.PREMIUM) formatted.PREMIUM = {};
-        if (!formatted.HPM) formatted.HPM = {};
-        if (!formatted['HARGA JUAL']) formatted['HARGA JUAL'] = {};
-        formatted.HMA[key] = row.hma ? String(row.hma) : '-';
-        formatted.PREMIUM[key] = row.premium ? String(row.premium) : '-';
-        formatted.HPM[key] = row.hpm ? String(row.hpm) : '-';
-        formatted['HARGA JUAL'][key] = row.harga_jual ? String(row.harga_jual) : '-';
+        for (const cat of CATEGORIES) {
+          if (!formatted[cat]) formatted[cat] = {};
+          const dbCol = CATEGORY_DB_MAP[cat];
+          formatted[cat][key] = row[dbCol] ? String(row[dbCol]) : '-';
+        }
       });
       setPriceData(formatted);
     } catch (error) {
@@ -149,7 +156,7 @@ export default function MasterDataSalesPage() {
       setShowModal(false);
       setShowConfirmModal(false);
       setModalPage(1);
-      setFormData({ year: new Date().getFullYear(), month: 1, periode1: { hma: '', premium: '', hpm: '', harga_jual: '' }, periode2: { hma: '', premium: '', hpm: '', harga_jual: '' } });
+      setFormData({ year: new Date().getFullYear(), month: 1, periode1: { hma: '', hma_ni: '', hma_co: '', hma_fe: '', hma_cr: '', premium: '', hpm: '', harga_jual: '' }, periode2: { hma: '', hma_ni: '', hma_co: '', hma_fe: '', hma_cr: '', premium: '', hpm: '', harga_jual: '' } });
     } catch (error) {
       alert('Failed to save data');
     } finally {
@@ -176,8 +183,8 @@ export default function MasterDataSalesPage() {
           body: JSON.stringify({
             year: selectedYear,
             month,
-            periode1: { hma: getVal('HMA',1), premium: getVal('PREMIUM',1), hpm: getVal('HPM',1), harga_jual: getVal('HARGA JUAL',1) },
-            periode2: { hma: getVal('HMA',2), premium: getVal('PREMIUM',2), hpm: getVal('HPM',2), harga_jual: getVal('HARGA JUAL',2) },
+            periode1: { hma: getVal('HMA',1), hma_ni: getVal('HMA - Ni',1), hma_co: getVal('HMA - Co',1), hma_fe: getVal('HMA - Fe',1), hma_cr: getVal('HMA - Cr',1), premium: getVal('PREMIUM',1), hpm: getVal('HPM',1), harga_jual: getVal('HARGA JUAL',1) },
+            periode2: { hma: getVal('HMA',2), hma_ni: getVal('HMA - Ni',2), hma_co: getVal('HMA - Co',2), hma_fe: getVal('HMA - Fe',2), hma_cr: getVal('HMA - Cr',2), premium: getVal('PREMIUM',2), hpm: getVal('HPM',2), harga_jual: getVal('HARGA JUAL',2) },
           }),
         });
       }
@@ -258,7 +265,8 @@ export default function MasterDataSalesPage() {
                 <table style={{borderCollapse:'separate', borderSpacing:0}}>
                   <thead>
                     <tr style={{backgroundColor:'#f9fafb'}}>
-                      <th rowSpan={2} style={{border:'1px solid #ddd', padding:'12px 16px', textAlign:'center', width:'130px', position:'sticky', left:0, zIndex:2, backgroundColor:'#f9fafb', borderRight:'2px solid #aaa', boxShadow:'4px 0 6px -2px rgba(0,0,0,0.15)'}}>Kategori</th>
+                      <th rowSpan={2} style={{border:'1px solid #ddd', padding:'12px 16px', textAlign:'center', width:'100px', position:'sticky', left:0, zIndex:2, backgroundColor:'#f9fafb'}}>Kategori</th>
+                      <th rowSpan={2} style={{border:'1px solid #ddd', padding:'12px 16px', textAlign:'center', width:'80px', position:'sticky', left:100, zIndex:2, backgroundColor:'#f9fafb', borderRight:'2px solid #aaa', boxShadow:'4px 0 6px -2px rgba(0,0,0,0.15)'}}>Sub</th>
                       {MONTHS.map(m => (
                         <th key={m} colSpan={2} style={{border:'1px solid #ddd', padding:'12px 16px', textAlign:'center'}}>{m}</th>
                       ))}
@@ -273,26 +281,37 @@ export default function MasterDataSalesPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {CATEGORIES.map((kat) => (
-                      <tr key={kat} className="hover:bg-gray-50">
-                        <td style={{border:'1px solid #ddd', padding:'12px 16px', fontWeight:'600', position:'sticky', left:0, zIndex:1, backgroundColor:'#fff', borderRight:'2px solid #aaa', boxShadow:'4px 0 6px -2px rgba(0,0,0,0.15)'}}>{kat}</td>
-                        {MONTHS.map((_, mIdx) => (
-                          <React.Fragment key={mIdx}>
-                            <td style={{border:'1px solid #ddd', padding:'12px 16px', textAlign:'center'}}>
-                              {editMode && canEditCell(kat, mIdx+1, 1) ? (
-                                <input type="text" value={editData[kat]?.[`${mIdx+1}_1`] || ''} onChange={(e) => handleEditChange(kat, mIdx+1, 1, e.target.value)}
-                                  placeholder="0.00" className="w-full px-2 py-1 border border-gray-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                              ) : getValue(kat, mIdx+1, 1)}
+                    {CATEGORY_GROUPS.map((group) => (
+                      group.items.map((kat, subIdx) => (
+                        <tr key={kat} className="hover:bg-gray-50">
+                          {group.label && subIdx === 0 ? (
+                            <td rowSpan={group.items.length} style={{border:'1px solid #ddd', padding:'12px 16px', fontWeight:'600', position:'sticky', left:0, zIndex:1, backgroundColor:'#fff', verticalAlign:'middle'}}>
+                              {group.label}
                             </td>
-                            <td style={{border:'1px solid #ddd', padding:'12px 16px', textAlign:'center'}}>
-                              {editMode && canEditCell(kat, mIdx+1, 2) ? (
-                                <input type="text" value={editData[kat]?.[`${mIdx+1}_2`] || ''} onChange={(e) => handleEditChange(kat, mIdx+1, 2, e.target.value)}
-                                  placeholder="0.00" className="w-full px-2 py-1 border border-gray-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                              ) : getValue(kat, mIdx+1, 2)}
-                            </td>
-                          </React.Fragment>
-                        ))}
-                      </tr>
+                          ) : group.label && subIdx > 0 ? null : (
+                            <td style={{border:'1px solid #ddd', padding:'12px 16px', fontWeight:'600', position:'sticky', left:0, zIndex:1, backgroundColor:'#fff'}}>{kat}</td>
+                          )}
+                          <td style={{border:'1px solid #ddd', padding:'12px 16px', textAlign:'center', position:'sticky', left:100, zIndex:1, backgroundColor:'#fff', borderRight:'2px solid #aaa', boxShadow:'4px 0 6px -2px rgba(0,0,0,0.15)', fontSize:'13px'}}>
+                            {group.label ? kat.replace('HMA - ', '') : '-'}
+                          </td>
+                          {MONTHS.map((_, mIdx) => (
+                            <React.Fragment key={mIdx}>
+                              <td style={{border:'1px solid #ddd', padding:'12px 16px', textAlign:'center'}}>
+                                {editMode && canEditCell(kat, mIdx+1, 1) ? (
+                                  <input type="text" value={editData[kat]?.[`${mIdx+1}_1`] || ''} onChange={(e) => handleEditChange(kat, mIdx+1, 1, e.target.value)}
+                                    placeholder="0.00" className="w-full px-2 py-1 border border-gray-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                ) : getValue(kat, mIdx+1, 1)}
+                              </td>
+                              <td style={{border:'1px solid #ddd', padding:'12px 16px', textAlign:'center'}}>
+                                {editMode && canEditCell(kat, mIdx+1, 2) ? (
+                                  <input type="text" value={editData[kat]?.[`${mIdx+1}_2`] || ''} onChange={(e) => handleEditChange(kat, mIdx+1, 2, e.target.value)}
+                                    placeholder="0.00" className="w-full px-2 py-1 border border-gray-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                ) : getValue(kat, mIdx+1, 2)}
+                              </td>
+                            </React.Fragment>
+                          ))}
+                        </tr>
+                      ))
                     ))}
                   </tbody>
                 </table>
@@ -306,7 +325,7 @@ export default function MasterDataSalesPage() {
       {/* Add Data Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-white/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-5 rounded-t-2xl">
               <h2 className="text-xl font-bold text-white">{modalPage === 1 ? 'Periode I' : 'Periode II'}</h2>
               <div className="flex gap-2 mt-3">
@@ -314,10 +333,10 @@ export default function MasterDataSalesPage() {
                 <div className={`h-1 flex-1 rounded ${modalPage === 2 ? 'bg-white' : 'bg-blue-400'}`}></div>
               </div>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-6">
               {modalPage === 1 && (
                 <>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4 mb-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Tahun</label>
                       <input type="number" value={formData.year} onChange={(e) => setFormData({...formData, year: Number(e.target.value)})}
@@ -331,37 +350,41 @@ export default function MasterDataSalesPage() {
                       </select>
                     </div>
                   </div>
-                  {([['HMA','hma'],['PREMIUM','premium'],['HPM','hpm'],['HARGA JUAL','harga_jual']] as [string,string][]).map(([label, key]) => (
-                    <div key={key}>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-                      <input type="text" value={formData.periode1[key as keyof typeof formData.periode1]}
-                        onChange={(e) => handleInputChange('periode1', key, e.target.value)}
-                        placeholder="0.00" className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" />
-                    </div>
-                  ))}
+                  <div className="grid grid-cols-2 gap-4">
+                    {([['HMA - Ni','hma_ni'],['HMA - Co','hma_co'],['HMA - Fe','hma_fe'],['HMA - Cr','hma_cr'],['PREMIUM','premium'],['HPM','hpm'],['HARGA JUAL','harga_jual']] as [string,string][]).map(([label, key]) => (
+                      <div key={key}>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+                        <input type="text" value={formData.periode1[key as keyof typeof formData.periode1]}
+                          onChange={(e) => handleInputChange('periode1', key, e.target.value)}
+                          placeholder="0.00" className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" />
+                      </div>
+                    ))}
+                  </div>
                 </>
               )}
               {modalPage === 2 && (
                 <>
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-2">
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4">
                     <p className="text-sm text-blue-800"><span className="font-semibold">Tahun:</span> {formData.year} | <span className="font-semibold">Bulan:</span> {MONTHS[formData.month - 1]}</p>
                   </div>
-                  {([['HMA','hma'],['PREMIUM','premium'],['HPM','hpm'],['HARGA JUAL','harga_jual']] as [string,string][]).map(([label, key]) => (
-                    <div key={key}>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {label}{key === 'premium' ? <span className="ml-2 text-xs text-blue-500 font-normal">(mengikuti Periode I)</span> : ''}
-                      </label>
-                      <input type="text" value={formData.periode2[key as keyof typeof formData.periode2]}
-                        onChange={(e) => key !== 'premium' ? handleInputChange('periode2', key, e.target.value) : undefined}
-                        readOnly={key === 'premium'}
-                        placeholder="0.00"
-                        className={`w-full px-3 py-2 border-2 rounded-xl focus:outline-none ${
-                          key === 'premium'
-                            ? 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
-                            : 'border-gray-200 focus:border-blue-500'
-                        }`} />
-                    </div>
-                  ))}
+                  <div className="grid grid-cols-2 gap-4">
+                    {([['HMA - Ni','hma_ni'],['HMA - Co','hma_co'],['HMA - Fe','hma_fe'],['HMA - Cr','hma_cr'],['PREMIUM','premium'],['HPM','hpm'],['HARGA JUAL','harga_jual']] as [string,string][]).map(([label, key]) => (
+                      <div key={key}>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          {label}{key === 'premium' ? <span className="ml-2 text-xs text-blue-500 font-normal">(mengikuti Periode I)</span> : ''}
+                        </label>
+                        <input type="text" value={formData.periode2[key as keyof typeof formData.periode2]}
+                          onChange={(e) => key !== 'premium' ? handleInputChange('periode2', key, e.target.value) : undefined}
+                          readOnly={key === 'premium'}
+                          placeholder="0.00"
+                          className={`w-full px-3 py-2 border-2 rounded-xl focus:outline-none ${
+                            key === 'premium'
+                              ? 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
+                              : 'border-gray-200 focus:border-blue-500'
+                          }`} />
+                      </div>
+                    ))}
+                  </div>
                 </>
               )}
             </div>

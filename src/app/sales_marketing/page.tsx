@@ -3,10 +3,10 @@
 import React, { useState, useEffect } from "react";
 import Sidebar from "../components/sidebar";
 import { useUserRole } from "../hooks/useUserRole";
-import { PieChart, Pie, Cell, Tooltip as ReTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis } from "recharts";
+import { PieChart, Pie, Cell, Tooltip as ReTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, ComposedChart, Line, Area, CartesianGrid } from "recharts";
 
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
-const CATEGORIES = ['HMA','PREMIUM','HPM','HARGA JUAL'];
+const CATEGORIES = ['HMA','HMA_NI','HMA_CO','HMA_FE','HMA_CR','PREMIUM','HPM','HARGA JUAL'];
 
 type PriceData = { [kategori: string]: { [key: string]: string } };
 
@@ -223,12 +223,14 @@ export default function SalesMarketingPage() {
       const formatted: PriceData = {};
       data.forEach((row: any) => {
         const key = `${row.month}_${row.periode}`;
-        if (!formatted.HMA) formatted.HMA = {};
-        if (!formatted.PREMIUM) formatted.PREMIUM = {};
-        if (!formatted.HPM) formatted.HPM = {};
-        if (!formatted['HARGA JUAL']) formatted['HARGA JUAL'] = {};
+        const cats = ['HMA','HMA_NI','HMA_CO','HMA_FE','HMA_CR','PREMIUM','HPM','HARGA JUAL'];
+        cats.forEach(c => { if (!formatted[c]) formatted[c] = {}; });
         
         formatted.HMA[key] = row.hma ? String(row.hma) : '-';
+        formatted.HMA_NI[key] = row.hma_ni ? String(row.hma_ni) : '-';
+        formatted.HMA_CO[key] = row.hma_co ? String(row.hma_co) : '-';
+        formatted.HMA_FE[key] = row.hma_fe ? String(row.hma_fe) : '-';
+        formatted.HMA_CR[key] = row.hma_cr ? String(row.hma_cr) : '-';
         formatted.PREMIUM[key] = row.premium ? String(row.premium) : '-';
         formatted.HPM[key] = row.hpm ? String(row.hpm) : '-';
         formatted['HARGA JUAL'][key] = row.harga_jual ? String(row.harga_jual) : '-';
@@ -263,13 +265,70 @@ export default function SalesMarketingPage() {
     return filledMonths;
   };
 
-  // Fixed scale with yMin support: top=y20, bottom=y150, range=130px
-  const toY = (v: number, yMax: number, yMin: number = 0) => 165 - ((v - yMin) / (yMax - yMin)) * 130;
+  // Fixed scale with yMin support: top=y5, bottom=y195, range=190px
+  const toY = (v: number, yMax: number, yMin: number = 0) => 185 - ((v - yMin) / (yMax - yMin)) * 180;
 
   // Point 1: full number format (no abbreviation)
   const fmtLabel = (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: 2 });
 
-  const renderBarChart = (kategori: string, color1: string, color2: string, yMax: number, yMin: number = 0, singlePeriode: boolean = false) => {
+  const renderLineChart = (kategori: string, color1: string, color2: string, yMax: number, yMin: number = 0, yStep: number = 10) => {
+    const rawValues1 = getChartDataPeriode(kategori, 1);
+    const rawValues2 = getChartDataPeriode(kategori, 2);
+    const filledMonths = getFilledMonths(kategori);
+    if (filledMonths.length === 0)
+      return <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">Tidak ada data</div>;
+    const displayMonths = filledMonths;
+    const chartData = displayMonths.map(m => ({
+      name: MONTHS_SHORT[m],
+      p1: rawValues1[m] || null,
+      p2: rawValues2[m] || null,
+    }));
+    const axisColor = darkMode ? '#94a3b8' : '#6b7280';
+    const yTicks: number[] = [];
+    for (let v = yMin; v <= yMax + yStep * 0.001; v += yStep) {
+      yTicks.push(Math.round(v * 100) / 100);
+    }
+    return (
+      <ResponsiveContainer width="100%" height="100%">
+        <ComposedChart data={chartData} margin={{ top: 20, right: 20, left: -10, bottom: 4 }}>
+          <defs>
+            <linearGradient id="gradHJ1" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={color1} stopOpacity={0.3} />
+              <stop offset="100%" stopColor={color1} stopOpacity={0} />
+            </linearGradient>
+            <linearGradient id="gradHJ2" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={color2} stopOpacity={0.3} />
+              <stop offset="100%" stopColor={color2} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="4 3" stroke={axisColor} opacity={0.3} horizontal={true} vertical={false} />
+          <XAxis dataKey="name" tick={{ fontSize: 13, fill: axisColor }} axisLine={false} tickLine={false} padding={{ left: 30, right: 20 }} />
+          <YAxis domain={[yMin, yMax]} ticks={yTicks} tick={{ fontSize: 10, fill: axisColor }} axisLine={false} tickLine={false} width={45} />
+          <ReTooltip content={({ active, payload, label }: any) => {
+            if (!active || !payload?.length) return null;
+            return (
+              <div className="px-3 py-2 rounded-lg shadow-lg text-xs font-semibold text-white" style={{ backgroundColor: tooltipBg, whiteSpace: 'nowrap', border: darkMode ? '1px solid #334155' : 'none' }}>
+                <div className="text-gray-300 font-normal mb-1">{label}</div>
+                {payload.filter((p: any) => p.type === 'line' || p.stroke !== 'none').map((p: any, idx: number) => p.value != null && (
+                  <div key={`${p.dataKey}-${idx}`} style={{ color: p.stroke || p.fill }}>
+                    {p.dataKey === 'p1' ? 'Periode I' : 'Periode II'}: {p.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                ))}
+              </div>
+            );
+          }} />
+          <Area type="monotone" dataKey="p1" fill="url(#gradHJ1)" stroke="none" connectNulls={false} isAnimationActive={false} />
+          <Area type="monotone" dataKey="p2" fill="url(#gradHJ2)" stroke="none" connectNulls={false} isAnimationActive={false} />
+          <Line type="monotone" dataKey="p1" stroke={color1} strokeWidth={2.5} dot={{ r: 5, fill: color1 }} connectNulls={false} isAnimationActive={false}
+            label={({ x, y, value }: any) => value ? <text x={x} y={y + 18} textAnchor="middle" fontSize={14} fontWeight={700} fill={color1}>{fmtLabel(value)}</text> : <g />} />
+          <Line type="monotone" dataKey="p2" stroke={color2} strokeWidth={2.5} dot={{ r: 5, fill: color2 }} connectNulls={false} isAnimationActive={false}
+            label={({ x, y, value }: any) => value ? <text x={x} y={y - 10} textAnchor="middle" fontSize={14} fontWeight={700} fill={color2}>{fmtLabel(value)}</text> : <g />} />
+        </ComposedChart>
+      </ResponsiveContainer>
+    );
+  };
+
+  const renderBarChart = (kategori: string, color1: string, color2: string, yMax: number, yMin: number = 0, singlePeriode: boolean = false, yStep: number = 10) => {
     const rawValues1 = getChartDataPeriode(kategori, 1);
     const rawValues2 = getChartDataPeriode(kategori, 2);
     const filledMonths = getFilledMonths(kategori);
@@ -277,13 +336,12 @@ export default function SalesMarketingPage() {
       return (
         <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">Tidak ada data</div>
       );
-    const displayMonths = filledMonths.length < 3 ? [0, 1, 2] : filledMonths;
+    const displayMonths = filledMonths;
     const chartData = displayMonths.map(m => ({
       name: MONTHS_SHORT[m],
       p1: rawValues1[m] || 0,
       p2: rawValues2[m] || 0,
     }));
-    // dynamic bar size: wider when fewer months, narrower when more
     const axisColor = darkMode ? '#94a3b8' : '#6b7280';
     const barSize = Math.max(6, Math.min(22, Math.floor(200 / displayMonths.length)));
     const makeLabel = (color: string, offset: number) => ({ viewBox, value }: any) => {
@@ -295,11 +353,16 @@ export default function SalesMarketingPage() {
         </text>
       );
     };
+    // Generate Y-axis ticks
+    const yTicks: number[] = [];
+    for (let v = yMin; v <= yMax + yStep * 0.001; v += yStep) {
+      yTicks.push(Math.round(v * 100) / 100);
+    }
     return (
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={chartData} margin={{ top: 22, right: 8, left: 8, bottom: 4 }} barCategoryGap="20%" barGap={3}>
           <XAxis dataKey="name" tick={{ fontSize: 13, fill: axisColor }} axisLine={false} tickLine={false} />
-          <YAxis domain={[yMin, yMax]} hide />
+          <YAxis domain={[yMin, yMax]} ticks={yTicks} tick={{ fontSize: 10, fill: axisColor }} axisLine={false} tickLine={false} width={30} />
           <ReTooltip content={(p) => <BarTooltip {...p} tooltipBg={tooltipBg} darkMode={darkMode} />} cursor={{ fill: darkMode ? '#1e293b' : '#f1f5f9' }} />
           <Bar dataKey="p1" fill={color1} radius={[3, 3, 0, 0]} maxBarSize={barSize} isAnimationActive={false}
             label={makeLabel(color1, 6)} />
@@ -314,21 +377,34 @@ export default function SalesMarketingPage() {
     );
   };
 
-  const renderChart = (kategori: string, color1: string, color2: string, yMax: number, yMin: number = 0) => {
+  const renderChart = (kategori: string, color1: string, color2: string, yMax: number, yMin: number = 0, yStep: number = 0) => {
     const rawValues1 = getChartDataPeriode(kategori, 1);
     const rawValues2 = getChartDataPeriode(kategori, 2);
     const filledMonths = getFilledMonths(kategori);
     if (filledMonths.length === 0)
       return <text x="250" y="90" textAnchor="middle" fontSize="14" fill="#9ca3af">Tidak ada data</text>;
-    const displayMonths = filledMonths.length < 3 ? [0, 1, 2] : filledMonths;
-    const xs = displayMonths.map((_, i) => 20 + i * (460 / Math.max(displayMonths.length - 1, 1)));
+    const displayMonths = filledMonths;
+    const xStart = 60;
+    const xEnd = 480;
+    const xs = displayMonths.length === 1
+      ? [xStart]
+      : displayMonths.map((_, i) => xStart + i * ((xEnd - xStart) / (displayMonths.length - 1)));
     const fv1 = displayMonths.map(m => rawValues1[m]);
     const fv2 = displayMonths.map(m => rawValues2[m]);
     const ys1 = fv1.map(v => toY(v, yMax, yMin));
     const ys2 = fv2.map(v => toY(v, yMax, yMin));
     const id1 = `grad1-${kategori.replace(' ','-')}`;
     const id2 = `grad2-${kategori.replace(' ','-')}`;
-    const baseY = 165;
+    const baseY = 185;
+    // Build Y-axis ticks
+    const yTicks: number[] = [];
+    if (yStep > 0) {
+      for (let v = yMin; v <= yMax + yStep * 0.001; v += yStep) {
+        yTicks.push(Math.round(v * 10000) / 10000);
+      }
+    } else {
+      yTicks.push(yMin, yMax);
+    }
     // Build path segments — skip points with value 0 to avoid line dropping to bottom
     const buildPath = (fv: number[], ys: number[]) => {
       const segments: string[] = [];
@@ -344,7 +420,6 @@ export default function SalesMarketingPage() {
       return segments;
     };
     const buildArea = (fv: number[], ys: number[]) => {
-      // Only draw area for consecutive non-zero segments
       const segs: string[] = [];
       let start = -1;
       fv.forEach((v, i) => {
@@ -364,6 +439,8 @@ export default function SalesMarketingPage() {
     const paths2 = buildPath(fv2, ys2);
     const areas1 = buildArea(fv1, ys1);
     const areas2 = buildArea(fv2, ys2);
+    const axisColor = darkMode ? '#64748b' : '#9ca3af';
+    const fmtAxis = (v: number) => v % 1 === 0 ? v.toLocaleString('en-US') : v.toFixed(2);
     return (
       <>
         <defs>
@@ -376,6 +453,16 @@ export default function SalesMarketingPage() {
             <stop offset="100%" stopColor={color2} stopOpacity="0" />
           </linearGradient>
         </defs>
+        {/* Y-axis grid lines and labels */}
+        {yTicks.map((v, i) => {
+          const py = toY(v, yMax, yMin);
+          return (
+            <g key={`ytick-${i}`}>
+              <line x1="20" y1={py} x2="500" y2={py} stroke={axisColor} strokeWidth="0.5" strokeDasharray="4 3" opacity="0.4" />
+              <text x="-10" y={py + 4} textAnchor="end" fontSize="10" fill={axisColor}>{fmtAxis(v)}</text>
+            </g>
+          );
+        })}
         {areas1.map((pts, i) => <polygon key={`a1-${i}`} fill={`url(#${id1})`} points={pts} />)}
         {areas2.map((pts, i) => <polygon key={`a2-${i}`} fill={`url(#${id2})`} points={pts} />)}
         {paths1.map((d, i) => <path key={`l1-${i}`} fill="none" stroke={color1} strokeWidth="2.5" d={d} />)}
@@ -404,7 +491,7 @@ export default function SalesMarketingPage() {
             <text x={x} y={ys2[i] - 12} textAnchor="middle" fontSize="16" fontWeight="700" fill={color2}>{fmtLabel(fv2[i])}</text>
           </g>
         ))}
-        {displayMonths.map((monthIdx,i) => <text key={i} x={xs[i]} y="185" textAnchor="middle" fontSize="13" fill={darkMode ? '#94a3b8' : '#6b7280'}>{MONTHS_SHORT[monthIdx]}</text>)}
+        {displayMonths.map((monthIdx,i) => <text key={i} x={xs[i]} y="212" textAnchor="middle" fontSize="13" fill={darkMode ? '#94a3b8' : '#6b7280'}>{MONTHS_SHORT[monthIdx]}</text>)}
       </>
     );
   };
@@ -490,26 +577,37 @@ export default function SalesMarketingPage() {
             <div className={`flex-1 flex items-center justify-center text-lg ${dk('text-gray-400', 'text-gray-500')}`}>Loading...</div>
           ) : (
           <div className="flex-1 p-3 overflow-auto flex flex-col gap-3">
-            {/* Row 1: HMA + HARGA JUAL */}
-            <div className="grid grid-cols-2 gap-3" style={{ minHeight: '220px' }}>
-              {([{k:'HMA',yMax:25000,yMin:10000,c1:'#3b82f6',c2:'#f59e0b'},{k:'HARGA JUAL',yMax:100,yMin:0,c1:'#10b981',c2:'#a855f7'}] as {k:string,yMax:number,yMin:number,c1:string,c2:string}[]).map(({k,yMax,yMin,c1,c2}) => (
+            {/* Row 1: HMA sub-categories (Ni, Co, Fe, Cr) — 4 line charts */}
+            <div className="grid grid-cols-4 gap-3" style={{ height: '33%', minHeight: '200px' }}>
+              {([{k:'HMA_NI',label:'HMA - Ni',yMax:18000,yMin:14500,yStep:500,c1:'#3b82f6',c2:'#f59e0b'},{k:'HMA_CO',label:'HMA - Co',yMax:58000,yMin:32000,yStep:2000,c1:'#10b981',c2:'#a855f7'},{k:'HMA_FE',label:'HMA - Fe',yMax:1.60,yMin:1.34,yStep:0.02,c1:'#f43f5e',c2:'#06b6d4'},{k:'HMA_CR',label:'HMA - Cr',yMax:7.00,yMin:0,yStep:1,c1:'#f97316',c2:'#6366f1'}] as {k:string,label:string,yMax:number,yMin:number,yStep:number,c1:string,c2:string}[]).map(({k,label,yMax,yMin,yStep,c1,c2}) => (
                 <div key={k} className={`rounded-xl shadow-sm p-3 flex flex-col overflow-hidden ${dk('bg-white', 'bg-[#1e293b]')}`}>
-                  <h2 className={`text-base font-semibold mb-0.5 flex-shrink-0 ${dk('text-gray-700', 'text-gray-200')}`}>{k}</h2>
-                  <div className="flex gap-3 mb-1 flex-shrink-0">
-                    <span className="text-xs font-semibold" style={{color:c1}}>● Periode I</span>
-                    <span className="text-xs font-semibold" style={{color:c2}}>● Periode II</span>
+                  <h2 className={`text-sm font-semibold mb-0.5 flex-shrink-0 ${dk('text-gray-700', 'text-gray-200')}`}>{label}</h2>
+                  <div className="flex gap-2 mb-1 flex-shrink-0">
+                    <span className="text-[10px] font-semibold" style={{color:c1}}>● Periode I</span>
+                    <span className="text-[10px] font-semibold" style={{color:c2}}>● Periode II</span>
                   </div>
                   <div className="flex-1 min-h-0">
-                    <svg width="100%" height="100%" viewBox="-30 -10 560 225" preserveAspectRatio="xMidYMid meet" style={{display:'block'}}>
-                      {renderChart(k, c1, c2, yMax, yMin)}
+                    <svg width="100%" height="100%" viewBox="-75 -2 605 232" preserveAspectRatio="xMinYMid meet" style={{display:'block'}}>
+                      {renderChart(k, c1, c2, yMax, yMin, yStep)}
                     </svg>
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Row 2: PREMIUM + HPM + Donut gabungan (3 cols) */}
-            <div className="grid gap-3" style={{ gridTemplateColumns: '1fr 1fr 1fr', minHeight: '240px' }}>
+            {/* Row 2: HARGA JUAL + PREMIUM (2 cols) */}
+            <div className="grid grid-cols-2 gap-3" style={{ height: '33%', minHeight: '200px' }}>
+              {/* HARGA JUAL */}
+              <div className={`rounded-xl shadow-sm p-3 flex flex-col overflow-hidden ${dk('bg-white', 'bg-[#1e293b]')}`}>
+                <h2 className={`text-base font-semibold mb-0.5 flex-shrink-0 ${dk('text-gray-700', 'text-gray-200')}`}>HARGA JUAL</h2>
+                <div className="flex gap-3 mb-1 flex-shrink-0">
+                  <span className="text-xs font-semibold" style={{color:'#10b981'}}>● Periode I</span>
+                  <span className="text-xs font-semibold" style={{color:'#a855f7'}}>● Periode II</span>
+                </div>
+                <div className="flex-1 min-h-0">
+                  {renderLineChart('HARGA JUAL', '#10b981', '#a855f7', 100, 0, 10)}
+                </div>
+              </div>
               {/* PREMIUM */}
               <div className={`rounded-xl shadow-sm p-3 flex flex-col overflow-hidden ${dk('bg-white', 'bg-[#1e293b]')}`}>
                 <h2 className={`text-base font-semibold mb-1 flex-shrink-0 ${dk('text-gray-700', 'text-gray-200')}`}>PREMIUM</h2>
@@ -517,6 +615,10 @@ export default function SalesMarketingPage() {
                   {renderBarChart('PREMIUM', '#f43f5e', '#fb923c', 100, 0, true)}
                 </div>
               </div>
+            </div>
+
+            {/* Row 3: HPM + Kapal Donut (2 cols) */}
+            <div className="grid grid-cols-2 gap-3" style={{ height: '33%', minHeight: '200px' }}>
               {/* HPM */}
               <div className={`rounded-xl shadow-sm p-3 flex flex-col overflow-hidden ${dk('bg-white', 'bg-[#1e293b]')}`}>
                 <h2 className={`text-base font-semibold mb-1 flex-shrink-0 ${dk('text-gray-700', 'text-gray-200')}`}>HPM</h2>
