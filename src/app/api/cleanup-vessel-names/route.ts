@@ -11,7 +11,7 @@ export async function POST() {
   }
 
   try {
-    console.log('Starting vessel name cleanup...');
+
 
     // Get all vessel_status records with _seq
     const { data: statusRecords } = await supabase
@@ -28,7 +28,7 @@ export async function POST() {
           .update({ vessel_name: cleanName })
           .eq('id', record.id);
       }
-      console.log(`Updated ${statusRecords.length} vessel_status records`);
+
     }
 
     // Get all vessel_details records with _seq
@@ -46,7 +46,7 @@ export async function POST() {
           .update({ vessel_name: cleanName })
           .eq('id', record.id);
       }
-      console.log(`Updated ${detailsRecords.length} vessel_details records`);
+
     }
 
     return NextResponse.json({ 

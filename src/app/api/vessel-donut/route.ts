@@ -1,0 +1,39 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = (() => {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return url && key ? createClient(url, key) : null;
+})();
+
+export async function GET(request: NextRequest) {
+  if (!supabase) return NextResponse.json({ error: "DB unavailable" }, { status: 500 });
+
+  const { searchParams } = new URL(request.url);
+  const year = searchParams.get("year");
+  const mode = searchParams.get("mode"); // "completed" | default vessel_details
+
+  if (!year) return NextResponse.json({ error: "year required" }, { status: 400 });
+
+  if (mode === "completed") {
+    // Fetch from SQL View: vessel_completed_by_buyer
+    const { data, error } = await supabase
+      .from("vessel_completed_by_buyer")
+      .select("buyer, jumlah_kapal")
+      .eq("year", year)
+      .order("jumlah_kapal", { ascending: false });
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data ?? []);
+  }
+
+  // Default: vessel_details for rencana_muat / loading status
+  const { data, error } = await supabase
+    .from("vessel_details")
+    .select("vessel_name, buyer, rencana_muat, commenced_loading_date")
+    .like("month_year", `${year}-%`);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data ?? []);
+}

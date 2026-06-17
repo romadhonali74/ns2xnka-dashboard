@@ -23,8 +23,84 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  overflow-x: hidden;
 }
 
 html {
-  color-scheme: light;
+  color-scheme: light only;
+  overflow-x: hidden;
+}
+
+/* Prevent Samsung/Tizen night mode & forced color inversion */
+@media (forced-colors: active) {
+  * {
+    forced-color-adjust: none;
+  }
+}
+
+/* Prevent OS-level dark mode from overriding app colors */
+@media (prefers-color-scheme: dark) {
+  html {
+    color-scheme: light only;
+  }
+}
+
+/* Samsung Night Mode / Eye Comfort protection */
+* {
+  -webkit-forced-color-adjust: none;
+  forced-color-adjust: none;
+}
+
+button, select, input, svg, span, div {
+  -webkit-text-fill-color: unset;
+}
+
+/* Block any OS/browser level color filter or inversion */
+#__next, body > div:first-child {
+  filter: none !important;
+  -webkit-filter: none !important;
+  color-scheme: light only !important;
+}
+
+/* Custom cursor for all buttons and clickable elements */
+button,
+a,
+[role="button"],
+.cursor-pointer {
+  cursor: pointer;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-down {
+  animation: slideDown 0.3s ease-out forwards;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.85); }
+  to   { opacity: 1; transform: scale(1); }
 }

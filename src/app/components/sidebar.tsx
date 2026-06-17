@@ -1,11 +1,14 @@
 "use client";
 
-import { Home, TrendingUp, AlertTriangle, LogOut, Calendar } from "lucide-react";
+import { ShieldUser, ChartNoAxesCombined, Landmark, Home, TrendingUp, AlertTriangle, LogOut, Calendar, ShieldCheck, ChevronDown, ChevronRight, FileText, BarChart3, Settings, Users, ChevronLeft, Menu, Ship, Container, PackageSearch, FolderKanban, DollarSign, Receipt, TrendingUpIcon, HandCoins, Database } from "lucide-react";
 import { Button } from "./ui/button";
 import { useRouter, usePathname } from "next/navigation";
-import { supabase } from "../lib/supabase"; // Impor supabase
+import { supabase } from "../lib/supabase";
 import { useEffect, useState } from "react";
 import { useAuth } from "../providers/auth_provider";
+import { useUserRole } from "../hooks/useUserRole";
+import LogoutLoader from "./logout-loader";
+
 
 interface SidebarProps {
   onTabChange?: (tab: string) => void;
@@ -15,98 +18,94 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useAuth();
-  const [bureu, setBureu] = useState<string | null>(null);
-  const [role, setRole] = useState<string | null>(null);
+  const { bureau, isAdmin, permissions, isSuperAdmin } = useUserRole();
   const [showLoadingRate, setShowLoadingRate] = useState<boolean>(false);
+  const [showQCSubmenu, setShowQCSubmenu] = useState<boolean>(false);
+  const [showFinanceSubmenu, setShowFinanceSubmenu] = useState<boolean>(false);
+  const [showUserMgmtSubmenu, setShowUserMgmtSubmenu] = useState<boolean>(false);
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
+  const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState<boolean>(false);
+
+  // useEffect(() => {
+  //   setShowLoadingRate(permissions.includes('loading-rate') || isAdmin);
+  // }, [permissions, isAdmin]);
 
   useEffect(() => {
-    try {
-      const root: any = user ?? null;
-      const candidates = [
-        root?.app_metadata?.bureu,
-        root?.user_metadata?.bureu,
-        root?.raw_app_meta_data?.bureu,
-        root?.raw_user_meta_data?.bureu,
-      ];
-      const normalize = (v: unknown) =>
-        typeof v === "string" ? v.trim().toLowerCase() : "";
-      const normalized = candidates.map(normalize).filter((s) => s && s !== "-");
-      const knownSet = new Set(["shipping", "mining", "qc"]);
-      const firstValid = normalized.find((s) => knownSet.has(s)) || null;
-      setBureu(firstValid);
+    setShowLoadingRate(Array.isArray(permissions) ? permissions.includes('loading-rate') : false || isSuperAdmin);
+  }, [permissions, isSuperAdmin]);
 
-      const roleCandidates = [
-        root?.app_metadata?.role,
-        root?.user_metadata?.role,
-        root?.raw_app_meta_data?.role,
-        root?.raw_user_meta_data?.role,
-      ];
-      const r = normalize(roleCandidates.find((x: unknown) => typeof x === "string"));
-      setRole(r || null);
-
-      const hasShipping = normalized.includes("shipping");
-      const hasMiningOrQc = normalized.includes("mining") || normalized.includes("qc");
-      const visible = hasShipping ? true : hasMiningOrQc ? false : true;
-      setShowLoadingRate(visible);
-    } catch {
-      setBureu(null);
-      setRole(null);
-      setShowLoadingRate(true);
-    }
-  }, [user]);
-
-  // Fungsi untuk menentukan tab aktif berdasarkan pathname saat ini
   const getActiveTab = () => {
     if (pathname === "/") return "home";
     if (pathname === "/loading_ritase_rate") return "loading-rate";
     if (pathname === "/issues") return "issues";
+    if (pathname === "/mining_reports") return "mining-reports";
+    if (pathname === "/quality_control") return "quality_control";
+    if (pathname === "/quality_control/gcs") return "qc-gcs";
+    if (pathname === "/quality_control/pra_produksi") return "qc-pra_produksi";
+    if (pathname === "/quality_control/produksi") return "qc-produksi";
+    if (pathname === "/quality_control/kapal") return "qc-kapal";
+    if (pathname === "/quality_control/product_details") return "qc-product_details";
+    if (pathname === "/finance") return "finance";
+    if (pathname === "/finance/cash_cost_report") return "finance-cash-cost";
+    if (pathname === "/finance/detail_report") return "finance-detail";
+    if (pathname === "/sales_marketing") return "sales-marketing";
+    if (pathname === "/master_data_sales") return "master-data-sales";
+    if (pathname === "/user_management/details") return "user-details";
+    if (pathname === "/user_management/privileges") return "user-privileges";
+    if (pathname === "/users") return "users";
     if (pathname.startsWith("/realisasi_pengapalan")) return "daily-operations";
     return "home";
   };
 
+  useEffect(() => {
+    if (pathname.startsWith("/quality_control")) setShowQCSubmenu(true);
+    if (pathname.startsWith("/finance")) setShowFinanceSubmenu(true);
+    if (pathname.startsWith("/user_management")) setShowUserMgmtSubmenu(true);
+  }, [pathname]);
+
   const activeTab = getActiveTab();
 
   const handleLogout = async () => {
+    setShowLogoutConfirm(false);
+    setIsLoggingOut(true);
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-
-      // 2. Hapus semua cookie terkait auth
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      await supabase.auth.signOut();
       document.cookie.split(";").forEach((c) => {
-        document.cookie = c
-          .replace(/^ +/, "")
-          .replace(/=.*/, `=;expires=${new Date().toUTCString()};path=/`);
+        document.cookie = c.replace(/^ +/, "").replace(/=.*/, `=;expires=${new Date().toUTCString()};path=/`);
       });
-
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      console.log("Session after logout:", session);
-
-      // Paksa reset state auth dan cache
-      window.location.href = "/login"; // Hard redirect untuk pastikan cache bersih
+      window.location.href = "/login";
     } catch (error) {
       console.error("Logout error:", error);
+      setIsLoggingOut(false);
       router.push("/login");
     }
   };
 
   const handleTabClick = (tab: string) => {
-    if (onTabChange) {
-      onTabChange(tab);
-    }
-    // Logika navigasi berdasarkan tab yang diklik
-    if (tab === "home") {
-      router.push("/");
-    } else if (tab === "loading-rate") {
-      router.push("/loading_ritase_rate");
-    } else if (tab === "issues") {
-      router.push("/issues");
-    } else if (tab === "daily-operations") {
-      router.push("/realisasi_pengapalan");
-    } else if (tab === "logout") {
-      handleLogout();
-    }
+    if (onTabChange) onTabChange(tab);
+    if (tab === "home") router.push("/");
+    else if (tab === "loading-rate") router.push("/loading_ritase_rate");
+    else if (tab === "issues") router.push("/issues");
+    else if (tab === "daily-operations") router.push("/realisasi_pengapalan");
+    else if (tab === "mining-reports") router.push("/mining_reports");
+    else if (tab === "quality_control") setShowQCSubmenu(!showQCSubmenu);
+    else if (tab === "qc-gcs") router.push("/quality_control/gcs");
+    else if (tab === "qc-pra_produksi") router.push("/quality_control/pra_produksi");
+    else if (tab === "qc-produksi") router.push("/quality_control/produksi");
+    else if (tab === "qc-kapal") router.push("/quality_control/kapal");
+    else if (tab === "qc-product_details") router.push("/quality_control/product_details");
+    else if (tab === "finance") setShowFinanceSubmenu(!showFinanceSubmenu);
+    else if (tab === "finance-cash-cost") router.push("/finance/cash_cost_report");
+    else if (tab === "finance-detail") router.push("/finance/detail_report");
+    else if (tab === "sales-marketing") router.push("/sales_marketing");
+    else if (tab === "master-data-sales") router.push("/master_data_sales");
+    else if (tab === "user_management") setShowUserMgmtSubmenu(!showUserMgmtSubmenu);
+    else if (tab === "user-details") router.push("/user_management/details");
+    else if (tab === "user-privileges") router.push("/user_management/privileges");
+    else if (tab === "users") router.push("/users");
+    else if (tab === "logout") setShowLogoutConfirm(true);
   };
 
   const menuItems = [
@@ -114,39 +113,129 @@ export default function Sidebar({ onTabChange }: SidebarProps) {
     { id: "loading-rate", label: "Loading & Ritase Rate", icon: TrendingUp },
     { id: "daily-operations", label: "Daily Operations", icon: Calendar },
     { id: "issues", label: "Significant Issues", icon: AlertTriangle },
+    { id: "quality_control", label: "Quality Control", icon: ShieldCheck },
+    { id: "mining-reports", label: "Mining Reports", icon: BarChart3 },
+    { id: "finance", label: "Finance", icon: Landmark },
+    { id: "sales-marketing", label: "Sales & Marketing", icon: HandCoins },
+    { id: "master-data-sales", label: "Master Data Sales", icon: Database },
+    { id: "user_management", label: "User Management", icon: Settings },
     { id: "logout", label: "Log out", icon: LogOut },
   ];
 
-  const visibleMenuItems = showLoadingRate
-    ? menuItems
-    : menuItems.filter((m) => m.id !== "loading-rate");
+  const qcSubMenuItems = [
+    { id: "qc-gcs", label: "GCS", icon: FileText },
+    { id: "qc-pra_produksi", label: "ETO to EFO", icon: PackageSearch },
+    { id: "qc-produksi", label: "Produksi", icon: Container },
+    { id: "qc-kapal", label: "Kapal/Tkg", icon: Ship },
+    { id: "qc-product_details", label: "Product Details", icon: FolderKanban },
+  ];
+
+  const financeSubMenuItems = [
+    { id: "finance-cash-cost", label: "Cash Cost Report", icon: DollarSign },
+    { id: "finance-detail", label: "Detail Report", icon: ChartNoAxesCombined },
+  ];
+
+  const userMgmtSubMenuItems = [
+    { id: "user-details", label: "Details", icon: Users },
+    { id: "user-privileges", label: "Group Privilege", icon: ShieldUser },
+  ];
+
+  const getVisibleMenuItems = () => {
+    if (isSuperAdmin) return menuItems;
+    return menuItems.filter(item => {
+      if (item.id === 'logout' || item.id === 'home') return true;
+      return Array.isArray(permissions) && permissions.includes(item.id);
+    });
+  };
+
+  const visibleMenuItems = getVisibleMenuItems();
 
   return (
-    <div className="w-64 bg-white shadow-sm min-h-screen">
-      <div className="p-6">
-        <h2 className="text-[#273240] font-semibold mb-6">Menu</h2>
-        <nav className="space-y-2">
-          {visibleMenuItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <Button
-                key={item.id}
-                variant={isActive ? "default" : "ghost"}
-                className={`w-full justify-start gap-3 transition-colors ${
-                  isActive
-                    ? "bg-[#0075cf] text-white hover:bg-[#114771]"
-                    : "text-[#273240] hover:bg-[#f1f2f7]"
-                }`}
-                onClick={() => handleTabClick(item.id)}
-              >
-                <Icon className="w-4 h-4" />
-                {item.label}
-              </Button>
-            );
-          })}
-        </nav>
+    <>
+      <LogoutLoader isLoading={isLoggingOut} />
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">Apakah anda yakin ingin LogOut?</h3>
+            <div className="flex gap-3 justify-center">
+              <button onClick={() => setShowLogoutConfirm(false)} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 cursor-pointer">Tidak</button>
+              <button onClick={handleLogout} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 cursor-pointer">Ya</button>
+            </div>
+          </div>
+        </div>
+      )}
+      <div className={`${isCollapsed ? 'w-16' : 'w-64'} flex-shrink-0 bg-white shadow-sm h-full overflow-y-auto transition-all duration-300 relative`}>
+        <div className={`${isCollapsed ? 'p-2' : 'p-6'}`}>
+          <button 
+            onClick={() => setIsCollapsed(!isCollapsed)} 
+            className={`${isCollapsed ? 'w-full mb-4' : 'absolute right-2 top-6'} bg-white border rounded-full p-1 shadow-md hover:shadow-lg z-10 group cursor-pointer transition-all duration-300`}
+          >
+            {isCollapsed ? <Menu className="w-4 h-4 mx-auto" /> : <ChevronLeft className="w-4 h-4" />}
+          </button>
+          {!isCollapsed && <h2 className="text-[#273240] font-semibold mb-6">Menu</h2>}
+          <nav className="space-y-2">
+            {visibleMenuItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              const isQCParent = item.id === "quality_control" && (activeTab === "quality_control" || activeTab.startsWith("qc-"));
+              const isFinanceParent = item.id === "finance" && (activeTab === "finance" || activeTab.startsWith("finance-"));
+              const isUserMgmtParent = item.id === "user_management" && activeTab.startsWith("user-");
+
+              return (
+                <div key={item.id}>
+                  <Button
+                    variant={isActive || isQCParent || isFinanceParent || isUserMgmtParent ? "default" : "ghost"}
+                    className={`w-full ${isCollapsed ? 'justify-center p-2' : 'justify-start gap-3'} ${
+                      isActive || isQCParent || isFinanceParent || isUserMgmtParent ? "bg-[#0075cf] text-white" : "text-[#273240] hover:bg-blue-50 hover:text-[#0075cf]"
+                    } cursor-pointer transition-all duration-200 group`}
+                    onClick={() => handleTabClick(item.id)}
+                  >
+                    <Icon className="w-4 h-4 transition-transform duration-200 group-hover:scale-110 group-hover:rotate-3" />
+                    {!isCollapsed && (
+                      <>
+                        <span className="flex-1 text-left">{item.label}</span>
+                        {(item.id === "quality_control" || item.id === "finance" || item.id === "user_management") && (
+                          (item.id === "quality_control" ? showQCSubmenu : item.id === "finance" ? showFinanceSubmenu : showUserMgmtSubmenu) ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />
+                        )}
+                      </>
+                    )}
+                  </Button>
+                  
+                  {!isCollapsed && item.id === "quality_control" && showQCSubmenu && (
+                    <div className="ml-6 mt-2 space-y-1">
+                      {qcSubMenuItems.map(sub => (
+                        <Button key={sub.id} variant={activeTab === sub.id ? "default" : "ghost"} className={`w-full justify-start gap-3 text-sm cursor-pointer transition-all duration-200 group ${activeTab === sub.id ? "bg-[#0075cf] text-white" : "hover:bg-blue-50 hover:text-[#0075cf]"}`} onClick={() => handleTabClick(sub.id)}>
+                          <sub.icon className="w-3 h-3 transition-transform duration-200 group-hover:scale-110 group-hover:rotate-3" /> {sub.label}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+
+                  {!isCollapsed && item.id === "finance" && showFinanceSubmenu && (
+                    <div className="ml-6 mt-2 space-y-1">
+                      {financeSubMenuItems.map(sub => (
+                        <Button key={sub.id} variant={activeTab === sub.id ? "default" : "ghost"} className={`w-full justify-start gap-3 text-sm cursor-pointer transition-all duration-200 group ${activeTab === sub.id ? "bg-[#0075cf] text-white" : "hover:bg-blue-50 hover:text-[#0075cf]"}`} onClick={() => handleTabClick(sub.id)}>
+                          <sub.icon className="w-3 h-3 transition-transform duration-200 group-hover:scale-110 group-hover:rotate-3" /> {sub.label}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+
+                  {!isCollapsed && item.id === "user_management" && showUserMgmtSubmenu && (
+                    <div className="ml-6 mt-2 space-y-1">
+                      {userMgmtSubMenuItems.map(sub => (
+                        <Button key={sub.id} variant={activeTab === sub.id ? "default" : "ghost"} className={`w-full justify-start gap-3 text-sm cursor-pointer transition-all duration-200 group ${activeTab === sub.id ? "bg-[#0075cf] text-white" : "hover:bg-blue-50 hover:text-[#0075cf]"}`} onClick={() => handleTabClick(sub.id)}>
+                          <sub.icon className="w-3 h-3 transition-transform duration-200 group-hover:scale-110 group-hover:rotate-3" /> {sub.label}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </nav>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

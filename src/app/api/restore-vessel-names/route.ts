@@ -11,7 +11,6 @@ export async function POST() {
   }
 
   try {
-    console.log('Restoring vessel names with seq...');
 
     // Restore vessel_status records - add back _seq suffix based on vessel_sequence
     const { data: statusRecords } = await supabase
@@ -29,7 +28,6 @@ export async function POST() {
             .eq('id', record.id);
         }
       }
-      console.log(`Restored ${statusRecords.length} vessel_status records`);
     }
 
     return NextResponse.json({ 

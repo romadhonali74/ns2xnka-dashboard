@@ -7,7 +7,6 @@ const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supa
 
 export async function GET(request: NextRequest) {
   if (!supabase) {
-    console.log('No supabase client available');
     return NextResponse.json({ data: {} });
   }
   
@@ -137,17 +136,18 @@ export async function GET(request: NextRequest) {
       });
     }
     
+    // COMMENTED: loading_ritase_rates query (not used in curve chart)
     // Get loading data from loading_ritase_rates
-    const { data: monthlyLoadingData } = await supabase
-      .from("loading_ritase_rates")
-      .select("loading_rate")
-      .eq("month_year", monthYear);
-    
-    if (monthlyLoadingData) {
-      monthlyLoadingData.forEach(row => {
-        if (row.loading_rate) totalLoading += row.loading_rate;
-      });
-    }
+    // const { data: monthlyLoadingData } = await supabase
+    //   .from("loading_ritase_rates")
+    //   .select("loading_rate")
+    //   .eq("month_year", monthYear);
+    // 
+    // if (monthlyLoadingData) {
+    //   monthlyLoadingData.forEach(row => {
+    //     if (row.loading_rate) totalLoading += row.loading_rate;
+    //   });
+    // }
     
 
 

@@ -293,44 +293,10 @@ export default function RealisasiPengapalanPage() {
     // Tab change handler
   };
 
-  if (isLoading) {
-    return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ backgroundColor: "#f1f2f7" }}
-      >
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Memuat data operasional harian...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ backgroundColor: "#f1f2f7" }}
-      >
-        <div className="text-center p-4 bg-red-100 border border-red-400 text-red-700 rounded-md">
-          <p>{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded"
-          >
-            Coba Lagi
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#f1f2f7" }}>
-      <div className="flex">
-        <Sidebar onTabChange={handleTabChange} />
-        <div className="flex-1 p-8">
+    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: "#f1f2f7" }}>
+      <Sidebar onTabChange={handleTabChange} />
+        <div className="flex-1 overflow-auto p-8">
           <div className="bg-white rounded-lg shadow-sm overflow-hidden">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
@@ -361,6 +327,26 @@ export default function RealisasiPengapalanPage() {
               </div>
 
               <div className="overflow-x-auto">
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-20">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                      <p className="text-gray-600">Memuat data operasional harian...</p>
+                    </div>
+                  </div>
+                ) : error ? (
+                  <div className="flex items-center justify-center py-20">
+                    <div className="text-center p-4 bg-red-100 border border-red-400 text-red-700 rounded-md">
+                      <p>{error}</p>
+                      <button
+                        onClick={() => window.location.reload()}
+                        className="mt-4 px-4 py-2 bg-blue-500 text-white rounded"
+                      >
+                        Coba Lagi
+                      </button>
+                    </div>
+                  </div>
+                ) : (
                 <table className="w-full">
                   <thead>
                     <tr>
@@ -587,11 +573,11 @@ export default function RealisasiPengapalanPage() {
                     ))}
                   </tbody>
                 </table>
+                )}
               </div>
             </div>
           </div>
         </div>
-      </div>
     </div>
   );
 }

@@ -58,7 +58,6 @@ export default function LoginPage() {
         data: { session },
       } = await supabase.auth.getSession();
 
-      console.log("Session after logout:", session);
 
       if (session) {
         router.push("/home");
